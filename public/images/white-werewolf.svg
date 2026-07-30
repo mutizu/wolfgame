@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- 白狼：人狼と同じ形を白くして、一目で対比が分かるようにしている -->
+  <path d="M12 14l6 11 14-5 14 5 6-11 3 19c0 14-10 24-23 24S9 47 9 33z" fill="#e5e7eb" stroke="#9ca3af" stroke-width="2"/>
+  <circle cx="24" cy="34" r="3" fill="#ef4444"/>
+  <circle cx="40" cy="34" r="3" fill="#ef4444"/>
+  <path d="M32 40l-4 6h8z" fill="#9ca3af"/>
+</svg>

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- 村人 -->
+  <circle cx="32" cy="21" r="10" fill="#6b7280"/>
+  <path d="M32 34c-11 0-19 8-19 18v6h38v-6c0-10-8-18-19-18z" fill="#6b7280"/>
+</svg>

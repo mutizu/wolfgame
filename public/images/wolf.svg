@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- 人狼 -->
+  <path d="M12 14l6 11 14-5 14 5 6-11 3 19c0 14-10 24-23 24S9 47 9 33z" fill="#6b7280"/>
+  <circle cx="24" cy="34" r="3" fill="#ef4444"/>
+  <circle cx="40" cy="34" r="3" fill="#ef4444"/>
+  <path d="M32 40l-4 6h8z" fill="#4b5563"/>
+</svg>

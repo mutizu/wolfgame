@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- 付き人：誰かに付いて、その役職になる -->
+  <circle cx="21" cy="22" r="8" fill="#9ca3af"/>
+  <path d="M21 33c-8 0-14 6-14 14v5h28v-5c0-8-6-14-14-14z" fill="#9ca3af"/>
+  <circle cx="42" cy="20" r="10" fill="#3b82f6"/>
+  <path d="M42 33c-10 0-17 7-17 16v3h34v-3c0-9-7-16-17-16z" fill="#3b82f6"/>
+</svg>

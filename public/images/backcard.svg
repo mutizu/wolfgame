@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- カードの裏面（役職が非公開の状態） -->
+  <defs>
+    <pattern id="stripe" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="8" height="8" fill="#eef0f4"/>
+      <rect width="4" height="8" fill="#dfe3ea"/>
+    </pattern>
+  </defs>
+  <rect x="11" y="6" width="42" height="52" rx="6" fill="url(#stripe)" stroke="#c4cbd6" stroke-width="2"/>
+</svg>

@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ワンナイト人狼</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M12 14l6 11 14-5 14 5 6-11 3 19c0 14-10 24-23 24S9 47 9 33z' fill='%236b7280'/%3E%3Ccircle cx='24' cy='34' r='3' fill='%23ef4444'/%3E%3Ccircle cx='40' cy='34' r='3' fill='%23ef4444'/%3E%3C/svg%3E">
+
+<style>
+:root{
+  --bg:#f7f8fa; --surface:#ffffff; --surface-2:#f0f2f5;
+  --text:#16181d; --dim:#5b6270; --faint:#8b93a1;
+  --border:#e2e5ea; --accent:#2563eb; --accent-soft:#e8efff;
+  --wolf:#dc3545; --village:#2563eb;
+  --shadow:0 1px 3px rgba(16,24,40,.06),0 1px 2px rgba(16,24,40,.04);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0f1115; --surface:#171a21; --surface-2:#1e222b;
+    --text:#e8eaed; --dim:#9aa3b2; --faint:#6b7385;
+    --border:#282d38; --accent:#60a5fa; --accent-soft:#1c2740;
+    --wolf:#f87171; --village:#60a5fa;
+    --shadow:0 1px 3px rgba(0,0,0,.3);
+  }
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Yu Gothic UI",Meiryo,sans-serif;
+  line-height:1.7; font-size:16px;
+  -webkit-font-smoothing:antialiased;
+}
+button{font-family:inherit}
+
+.wrap{max-width:480px;margin:0 auto;padding:24px 16px 40px}
+.wrap-wide{max-width:920px;margin:0 auto;padding:16px 16px 40px}
+
+/* ---------- 共通 ---------- */
+.card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:16px;box-shadow:var(--shadow);
+}
+.card + .card{margin-top:12px}
+.card h2{font-size:.82rem;font-weight:600;color:var(--dim);margin-bottom:10px}
+
+.field{
+  width:100%;padding:12px;font-size:1rem;font-family:inherit;
+  background:var(--surface);color:var(--text);
+  border:1px solid var(--border);border-radius:8px;
+}
+.field::placeholder{color:var(--faint)}
+.field:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
+
+.btn{
+  width:100%;padding:13px;font-size:1rem;font-weight:600;
+  border:1px solid var(--accent);border-radius:8px;cursor:pointer;
+  background:var(--accent);color:#fff;
+}
+.btn:hover:not(:disabled){filter:brightness(1.08)}
+.btn:disabled{background:var(--surface-2);border-color:var(--border);color:var(--faint);cursor:not-allowed}
+.btn-sub{background:var(--surface);color:var(--accent)}
+.btn-sub:hover:not(:disabled){background:var(--accent-soft)}
+
+.divider{display:flex;align-items:center;gap:10px;color:var(--faint);font-size:.8rem;margin:12px 0}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* ---------- 入口 ---------- */
+.head{padding:8px 0 20px}
+.head h1{font-size:1.3rem;font-weight:700}
+.head p{color:var(--dim);font-size:.88rem;margin-top:4px}
+
+#room-code-input{
+  text-align:center;letter-spacing:.3em;text-transform:uppercase;
+  font-size:1.4rem;font-weight:700;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace;
+  margin-bottom:10px;
+}
+
+/* ---------- 待合室 ---------- */
+.room-code{
+  text-align:center;font-size:2.2rem;font-weight:700;
+  letter-spacing:.18em;color:var(--accent);
+  font-family:ui-monospace,"SF Mono",Menlo,monospace;
+  margin:2px 0 2px;
+}
+.room-hint{text-align:center;font-size:.78rem;color:var(--faint);margin-bottom:12px}
+
+.player-chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{
+  background:var(--surface-2);border:1px solid var(--border);
+  border-radius:6px;padding:5px 10px;font-size:.86rem;
+  display:flex;align-items:center;gap:6px;
+}
+.chip.is-me{border-color:var(--accent)}
+.chip .tag{font-size:.66rem;color:var(--faint);font-weight:600}
+.chip.is-host .tag{color:var(--accent)}
+
+.count-line{font-size:.82rem;color:var(--dim);margin-bottom:10px}
+.count-line b{color:var(--text);font-size:1.2rem;font-weight:700}
+
+/* 役職構成 */
+.role-row{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 0;border-bottom:1px solid var(--border);
+}
+.role-row:last-child{border-bottom:none}
+.role-row img{width:30px;height:30px;flex-shrink:0}
+.role-row .meta{flex:1;min-width:0}
+.role-row .rname{font-weight:600;font-size:.9rem;display:flex;align-items:center;gap:6px}
+.role-row .team-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.team-wolf .team-dot{background:var(--wolf)}
+.team-village .team-dot{background:var(--village)}
+.role-row .rdesc{font-size:.74rem;color:var(--faint);line-height:1.5}
+
+.stepper{display:flex;align-items:center;flex-shrink:0}
+.stepper button{
+  width:30px;height:30px;font-size:1rem;
+  background:var(--surface);color:var(--text);
+  border:1px solid var(--border);cursor:pointer;
+}
+.stepper button:first-child{border-radius:6px 0 0 6px}
+.stepper button:last-child{border-radius:0 6px 6px 0;border-left:none}
+.stepper button:hover{background:var(--surface-2)}
+.stepper .num{
+  min-width:32px;text-align:center;font-weight:700;line-height:30px;
+  border-top:1px solid var(--border);border-bottom:1px solid var(--border);
+  font-variant-numeric:tabular-nums;
+}
+.stepper .fixed{min-width:40px;text-align:center;font-weight:700;color:var(--dim)}
+
+.total-line{
+  margin-top:10px;padding-top:10px;border-top:1px solid var(--border);
+  font-size:.8rem;color:var(--dim);
+}
+.total-line.warn{color:var(--wolf)}
+
+.toggle-row{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:.9rem}
+.toggle-row input{width:18px;height:18px;accent-color:var(--accent);cursor:pointer}
+
+#start-button{margin-top:12px}
+
+/* ---------- ゲーム ---------- */
+.phase-header{
+  position:sticky;top:0;z-index:50;
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:10px 16px;display:flex;align-items:center;gap:10px;
+}
+.phase-header h2{font-size:.95rem;font-weight:700;white-space:nowrap}
+.phase-dots{display:flex;gap:4px;flex:1}
+.phase-indicator{width:22px;height:3px;border-radius:2px;background:var(--border)}
+.phase-indicator.active{background:var(--accent)}
+.discussion-end-button{
+  padding:8px 14px;font-size:.84rem;font-weight:600;
+  background:var(--accent);color:#fff;
+  border:none;border-radius:6px;cursor:pointer;white-space:nowrap;
+}
+.discussion-end-button:disabled{background:var(--surface-2);color:var(--faint);cursor:not-allowed}
+
+#player-roles{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));
+  gap:10px;padding-bottom:16px;
+}
+
+.player-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;overflow:hidden;position:relative;
+  display:flex;flex-direction:column;box-shadow:var(--shadow);
+}
+.player-name{
+  padding:7px 6px;font-size:.82rem;font-weight:600;text-align:center;
+  border-bottom:1px solid var(--border);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.role-image-container{
+  position:relative;flex:1;min-height:110px;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--surface-2);
+}
+.role-icon{width:56%;height:56%;object-fit:contain}
+.my-role-badge{
+  position:absolute;bottom:0;width:100%;
+  background:var(--surface);border-top:1px solid var(--border);
+  font-size:.76rem;font-weight:600;text-align:center;padding:3px 0;
+}
+
+/* 陣営は枠線1本で示す */
+.border-red{border-color:var(--wolf)}
+.border-blue{border-color:var(--village)}
+.border-gray{border-color:var(--border)}
+.bg-werewolf,.bg-villager,.bg-gray{background:var(--surface-2)}
+
+.player-card.is-dead{opacity:.45}
+.player-card.is-dead::after{
+  content:'';position:absolute;inset:0;
+  background:repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(128,128,128,.18) 6px,rgba(128,128,128,.18) 12px);
+}
+
+/* カード内のボタン */
+.ability-btn,.vote-button{
+  margin:8px;padding:8px 6px;font-size:.82rem;font-weight:600;
+  border:1px solid var(--accent);border-radius:6px;cursor:pointer;
+  background:var(--surface);color:var(--accent);
+}
+.ability-btn:hover,.vote-button:hover{background:var(--accent-soft)}
+.ability-assassinate{border-color:var(--wolf);color:var(--wolf)}
+.ability-assassinate:hover{background:var(--surface-2)}
+.vote-button.is-self,.vote-button.is-dead-target{
+  border-color:var(--border);color:var(--faint);background:var(--surface);
+}
+.vote-button.is-self{cursor:not-allowed}
+.voted-mark{margin:8px;padding:8px 6px;font-size:.82rem;font-weight:600;color:var(--accent);text-align:center}
+
+#ability-center-ui{padding:0 0 12px}
+#ability-center-ui button{
+  width:100%;padding:11px;font-size:.9rem;font-weight:600;
+  background:var(--surface);color:var(--accent);
+  border:1px solid var(--accent);border-radius:8px;cursor:pointer;
+}
+#ability-center-ui button:hover{background:var(--accent-soft)}
+
+/* 下段 */
+.bottom-section{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.role-list{
+  flex:1;min-width:200px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;padding:14px;box-shadow:var(--shadow);
+}
+.role-item{display:flex;justify-content:space-between;font-size:.84rem;padding:3px 0;color:var(--dim)}
+.role-item .role-count{font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
+.center-box{
+  flex-shrink:0;width:180px;text-align:center;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;padding:14px;box-shadow:var(--shadow);
+}
+.center-box .label{font-size:.82rem;font-weight:600}
+#center-count{font-size:.82rem;color:var(--dim);margin-top:4px}
+
+/* ---------- お知らせ・結果 ---------- */
+.notice{
+  position:fixed;top:12px;left:50%;transform:translateX(-50%);
+  padding:11px 18px;border-radius:8px;font-size:.88rem;font-weight:600;
+  background:var(--surface);color:var(--text);
+  border:1px solid var(--border);border-left:3px solid var(--accent);
+  box-shadow:0 4px 16px rgba(0,0,0,.15);
+  z-index:10002;max-width:92%;text-align:center;
+}
+.notice-wolf{border-left-color:var(--wolf)}
+.notice-teal{border-left-color:var(--accent)}
+
+#result-panel{
+  position:fixed;inset:0;z-index:10001;
+  background:rgba(0,0,0,.5);
+  display:flex;align-items:center;justify-content:center;padding:20px;
+}
+.result-box{
+  width:100%;max-width:360px;text-align:center;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:24px 20px;
+  box-shadow:0 12px 40px rgba(0,0,0,.3);
+}
+.result-box .banner{font-size:.7rem;letter-spacing:.12em;color:var(--faint)}
+.result-box h2{font-size:1.3rem;font-weight:700;margin:4px 0 6px}
+.result-box .msg{font-size:.84rem;color:var(--dim);margin-bottom:12px}
+.result-box .executed{
+  font-size:.86rem;padding:9px;border-radius:8px;
+  background:var(--surface-2);margin-bottom:14px;
+}
+
+@media(max-width:420px){
+  #player-roles{grid-template-columns:repeat(2,1fr)}
+  .role-row .rdesc{display:none}
+  .center-box{width:100%}
+}
+</style>
+</head>
+<body>
+
+<!-- ========== 入口 ========== -->
+<div id="entry-screen" class="wrap">
+  <div class="head">
+    <h1>ワンナイト人狼</h1>
+    <p>部屋を作って合言葉を配るか、もらった合言葉で入ってください。</p>
+  </div>
+
+  <div class="card">
+    <h2>名前</h2>
+    <input type="text" id="name-input" class="field" placeholder="あなたの名前（12文字まで）" maxlength="12" autocomplete="nickname">
+  </div>
+
+  <div class="card">
+    <h2>部屋を作る</h2>
+    <button id="create-room-button" class="btn">部屋を作る</button>
+  </div>
+
+  <div class="divider">または</div>
+
+  <div class="card">
+    <h2>合言葉で入る</h2>
+    <input type="text" id="room-code-input" class="field" placeholder="ABCD" maxlength="6" autocapitalize="characters" autocomplete="off" spellcheck="false">
+    <button id="join-room-button" class="btn btn-sub">この合言葉で入る</button>
+  </div>
+</div>
+
+<!-- ========== 待合室 ========== -->
+<div id="lobby-screen" class="wrap" style="display:none">
+  <div class="card">
+    <h2>合言葉</h2>
+    <div class="room-code" id="room-code-display">----</div>
+    <div class="room-hint">この文字を伝えるか、招待リンクを送ってください</div>
+    <button id="copy-link-button" class="btn btn-sub">招待リンクをコピー</button>
+  </div>
+
+  <div class="card">
+    <h2>参加者</h2>
+    <div class="count-line"><b id="player-count">0</b> 人</div>
+    <div class="player-chips" id="lobby-player-list"></div>
+  </div>
+
+  <div class="card" id="role-setting-container">
+    <h2>役職構成（ホストのみ変更可）</h2>
+    <div id="role-settings"></div>
+    <div class="total-line" id="total-role-count"></div>
+  </div>
+
+  <div class="card">
+    <label class="toggle-row">
+      <input type="checkbox" id="cpu-toggle">
+      CPU（COM1）を1名追加する
+    </label>
+  </div>
+
+  <button id="start-button" class="btn" disabled>ゲーム開始</button>
+</div>
+
+<!-- ========== ゲーム ========== -->
+<div id="game-screen" style="display:none">
+  <div class="phase-header">
+    <h2>議論中</h2>
+    <div class="phase-dots">
+      <div class="phase-indicator active"></div>
+      <div class="phase-indicator"></div>
+    </div>
+    <button class="discussion-end-button">投票開始</button>
+  </div>
+
+  <div class="wrap-wide">
+    <div id="player-roles"></div>
+
+    <div class="bottom-section">
+      <div class="role-list" id="role-cards-summary"></div>
+      <div class="center-box">
+        <div class="label">余りのカード</div>
+        <div id="center-count">0枚</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="client.js"></script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- 狂人：道化の仮面 -->
+  <path d="M32 10c-11 0-18 6-18 16 0 12 9 26 18 30 9-4 18-18 18-30 0-10-7-16-18-16z" fill="#8b5cf6"/>
+  <circle cx="24" cy="29" r="4" fill="#ffffff"/>
+  <circle cx="40" cy="29" r="4" fill="#ffffff"/>
+  <path d="M24 42q8 6 16 0" stroke="#ffffff" stroke-width="3" fill="none" stroke-linecap="round"/>
+</svg>
