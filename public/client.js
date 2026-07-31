@@ -36,6 +36,9 @@ const totalRoleCount = document.getElementById('total-role-count');
 const cpuToggle = document.getElementById('cpu-toggle');
 const startButton = document.getElementById('start-button');
 const discussionEndButton = document.querySelector('.discussion-end-button');
+const chatLog = document.getElementById('chat-log');
+const chatInput = document.getElementById('chat-input');
+const chatSend = document.getElementById('chat-send');
 
 // ----------------------------------------------------------
 // 役職データの読み込み
@@ -286,6 +289,9 @@ socket.on('gameStarted', (data) => {
     abilityUsed = false;
     deadIds = new Set();
 
+    clearChat();
+    appendChatSystem(`ゲーム開始。あなたは「${myRole}」です`);
+
     const playerRolesDiv = document.getElementById('player-roles');
     playerRolesDiv.innerHTML = '';
 
@@ -390,6 +396,61 @@ function setupAbilityUI(players) {
     }
 }
 
+// ----------------------------------------------------------
+// ⭐ 公開チャット
+// ----------------------------------------------------------
+
+/** 発言を1行追加する。textContent を使うのでHTMLタグは実行されない */
+function appendChat(name, text, isMe) {
+    const row = document.createElement('div');
+    row.className = 'chat-msg' + (isMe ? ' is-me' : '');
+
+    const who = document.createElement('span');
+    who.className = 'who';
+    who.textContent = name;
+
+    const body = document.createElement('span');
+    body.textContent = text;
+
+    row.append(who, body);
+    chatLog.appendChild(row);
+    chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+/** 進行状況をチャット欄にも残す（後から見返せるログになる） */
+function appendChatSystem(text) {
+    const row = document.createElement('div');
+    row.className = 'chat-sys';
+    row.textContent = text;
+    chatLog.appendChild(row);
+    chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+function clearChat() {
+    chatLog.innerHTML = '';
+    setChatEnabled(true);
+}
+
+function setChatEnabled(enabled) {
+    chatInput.disabled = !enabled;
+    chatSend.disabled = !enabled;
+    chatInput.placeholder = enabled ? '発言する' : '暗殺されたため発言できません';
+}
+
+function sendChat() {
+    const text = chatInput.value.trim();
+    if (!text) return;
+    socket.emit('chatMessage', text);
+    chatInput.value = '';
+}
+
+chatSend.addEventListener('click', sendChat);
+chatInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') sendChat();
+});
+
+socket.on('chatMessage', (m) => appendChat(m.name, m.text, m.id === socket.id));
+
 /** 画面上部に短いお知らせを出す */
 function showNotice(text, variant = 'notice-dark') {
     const el = document.createElement('div');
@@ -470,9 +531,17 @@ socket.on('playerAssassinated', (data) => {
         card.querySelectorAll('.ability-btn, .vote-button').forEach(b => b.remove());
     }
 
+    // 暗殺された人は処刑先にも選べなくなるので、投票ボタンを消す
+    document.querySelectorAll('.vote-button').forEach(b => {
+        if (b.closest('.player-card') === card) b.remove();
+    });
+
+    appendChatSystem(`🗡 ${data.targetName} が暗殺されました（発言・投票不可）`);
+
     if (data.targetId === socket.id) {
         document.querySelectorAll('.vote-button').forEach(b => b.remove());
-        showNotice('🗡 あなたは暗殺されました。以降は投票できません。', 'notice-wolf');
+        setChatEnabled(false);   // 口封じ：本人は以降しゃべれない
+        showNotice('🗡 あなたは暗殺されました。以降は発言も投票もできません。', 'notice-wolf');
     } else {
         showNotice(`🗡 ${data.targetName} が暗殺されました`, 'notice-wolf');
     }
@@ -491,23 +560,30 @@ socket.on('startVoting', (data) => {
     // 能力を使い残していても投票フェーズに入ったら締め切る
     clearAbilityUI();
 
+    appendChatSystem('投票フェーズに入りました');
+
     if (deadIds.has(socket.id)) {
         showNotice('あなたは暗殺されているため投票できません。', 'notice-wolf');
         return;
     }
 
+    let targetCount = 0;
+
     data.players.forEach(p => {
         const targetId = p.id || p.name;
+
+        // 暗殺された人は処刑先に選べない（口封じ＝投票の対象からも外れる）
+        if (deadIds.has(targetId)) return;
+
         const cardDiv = document.getElementById(`player-card-${targetId}`);
         if (!cardDiv || cardDiv.querySelector('.vote-button')) return;
 
         const isMe = targetId === socket.id;
-        const isDead = deadIds.has(targetId);
+        if (!isMe) targetCount++;
 
         const btn = document.createElement('button');
-        btn.className = 'vote-button' + (isMe ? ' is-self' : (isDead ? ' is-dead-target' : ''));
-        // 暗殺された人も処刑先には選べる（狼を暗殺されて村が勝てなくなるのを防ぐため）
-        btn.textContent = isMe ? '自分' : (isDead ? '投票（暗殺済）' : '投票する');
+        btn.className = 'vote-button' + (isMe ? ' is-self' : '');
+        btn.textContent = isMe ? '自分' : '投票する';
 
         if (isMe) {
             btn.disabled = true;
@@ -523,6 +599,11 @@ socket.on('startVoting', (data) => {
         }
         cardDiv.appendChild(btn);
     });
+
+    // 生き残りが自分だけになった場合。サーバー側も締め切り判定から除外している
+    if (targetCount === 0) {
+        showNotice('投票できる相手がいません。結果をお待ちください。', 'notice-wolf');
+    }
 });
 
 // ----------------------------------------------------------
@@ -574,6 +655,11 @@ socket.on('gameResults', (data) => {
     document.body.appendChild(panel);
 
     document.querySelector('.phase-header h2').textContent = '結果';
+    appendChatSystem(
+        `${data.winner && data.winner !== 'なし' ? data.winner + 'の勝利' : 'ゲーム不成立'}`
+        + `（処刑：${data.executedPlayer || 'なし'}）`
+    );
+    setChatEnabled(true);   // 結果後は暗殺された人も感想を言える
 });
 
 // ----------------------------------------------------------

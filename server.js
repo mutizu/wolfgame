@@ -59,8 +59,9 @@ function createRoom() {
         roleConfig: { ...DEFAULT_ROLE_CONFIG },
         gameSetup: null,
         votes: {},
-        deadIds: new Set(),        // 暗殺された人。以降は投票できない
+        deadIds: new Set(),        // 暗殺された人。発言・投票ができず、処刑先にも選べない
         usedAbilities: new Set(),  // 能力を使い終わった socketId（各能力は1回だけ）
+        votingStarted: false,      // 投票フェーズに入ったか（能力は議論中しか使えない）
         createdAt: Date.now(),
     };
     rooms.set(room.id, room);
@@ -114,6 +115,21 @@ function aliveHumanIds(room) {
     return Object.keys(room.players).filter(id => !room.deadIds.has(id));
 }
 
+/** 処刑先に選べる相手（暗殺された人は対象外。自分にも投票できない） */
+function validTargetsFor(room, voterId) {
+    if (!room.gameSetup) return [];
+    return room.gameSetup.players.filter(p => {
+        const key = p.id || p.name;
+        return key !== voterId && !room.deadIds.has(key);
+    });
+}
+
+/** その人が投票できる状態か（暗殺されておらず、選べる相手が1人以上いる） */
+function canVote(room, voterId) {
+    if (room.deadIds.has(voterId)) return false;
+    return validTargetsFor(room, voterId).length > 0;
+}
+
 /** 入室処理。成功したら true */
 function enterRoom(socket, room, playerName) {
     if (room.isGameStarted) {
@@ -165,6 +181,7 @@ function startNewGame(room, useCpu) {
     room.votes = {};
     room.deadIds = new Set();
     room.usedAbilities = new Set();
+    room.votingStarted = false;
 
     // ── 役職カードが足りないと役職なしのプレイヤーが出て進行不能になるので先に弾く
     const total = totalRoleCount(room.roleConfig);
@@ -273,15 +290,21 @@ function processFinalResults(room) {
     room.votes = {};
     room.deadIds = new Set();
     room.usedAbilities = new Set();
+    room.votingStarted = false;
 }
 
-/** 生きている全員が投票し終わったら結果へ進む */
+/** 投票できる全員が投票し終わったら結果へ進む */
 function checkVotesComplete(room) {
-    if (!room.isGameStarted) return;
-    const alive = aliveHumanIds(room);
-    const voted = alive.filter(id => room.votes[id] !== undefined);
-    console.log(`🗳 ${room.id}: ${voted.length} / ${alive.length}（生存者）`);
-    if (alive.length > 0 && voted.length >= alive.length) {
+    if (!room.isGameStarted || !room.votingStarted) return;
+
+    // 暗殺されている人と、選べる相手がいない人は締め切り判定から除く。
+    // これを入れないと、暗殺で対象がいなくなった人を待ち続けて進行不能になる。
+    const voters = Object.keys(room.players).filter(id => canVote(room, id));
+    const voted = voters.filter(id => room.votes[id] !== undefined);
+
+    console.log(`🗳 ${room.id}: ${voted.length} / ${voters.length}（投票できる人）`);
+
+    if (voted.length >= voters.length) {
         processFinalResults(room);
     }
 }
@@ -350,6 +373,7 @@ io.on('connection', (socket) => {
     socket.on('fortuneAction', (data) => {
         const room = getRoom(socket);
         if (!room || !room.isGameStarted || !room.gameSetup) return;
+        if (room.votingStarted) return;                  // 能力は議論中だけ
 
         const me = room.gameSetup.players.find(p => p.id === socket.id);
         if (!me || !hasAbility(me.role, 'fortune')) return;
@@ -373,6 +397,7 @@ io.on('connection', (socket) => {
     socket.on('assassinateAction', (data) => {
         const room = getRoom(socket);
         if (!room || !room.isGameStarted || !room.gameSetup) return;
+        if (room.votingStarted) return;                  // 能力は議論中だけ
         if (room.usedAbilities.has(socket.id)) return;   // 能力は1回だけ
 
         const me = room.gameSetup.players.find(p => p.id === socket.id);
@@ -406,6 +431,7 @@ io.on('connection', (socket) => {
     socket.on('followerAction', (data) => {
         const room = getRoom(socket);
         if (!room || !room.isGameStarted || !room.gameSetup) return;
+        if (room.votingStarted) return;                  // 能力は議論中だけ
         if (room.usedAbilities.has(socket.id)) return;
 
         const me = room.gameSetup.players.find(p => p.id === socket.id);
@@ -439,7 +465,12 @@ io.on('connection', (socket) => {
             .filter(p => p.type === 'computer')
             .map(p => ({ name: p.name, id: p.name }));
 
+        room.votingStarted = true;
         io.to(room.id).emit('startVoting', { players: [...humanPlayers, ...comPlayers] });
+
+        // 暗殺で投票できる人が誰もいなくなっている場合、
+        // 誰の投票も届かないため、ここで判定を起動しないと進行不能になる
+        checkVotesComplete(room);
     });
 
     // ── 投票
@@ -450,11 +481,38 @@ io.on('connection', (socket) => {
         // 暗殺された人は投票できない
         if (room.deadIds.has(socket.id)) return;
 
-        // 自分自身への投票は受け付けない
+        // 自分自身と、暗殺された人には投票できない（口封じ＝処刑対象からも外れる）
         if (data?.targetId === socket.id) return;
+        if (room.deadIds.has(data?.targetId)) return;
 
         room.votes[socket.id] = data?.targetId;
         checkVotesComplete(room);
+    });
+
+    // ── 公開チャット。同じ部屋の全員に届く
+    socket.on('chatMessage', (text) => {
+        const room = getRoom(socket);
+        if (!room) return;
+
+        const player = room.players[socket.id];
+        if (!player) return;
+
+        // 暗殺された人は発言できない（口封じ）
+        if (room.deadIds.has(socket.id)) return;
+
+        const body = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+        if (!body) return;
+
+        // 連打による荒らしを防ぐ簡易的な間隔制限
+        const now = Date.now();
+        if (now - (socket.data.lastChatAt || 0) < 400) return;
+        socket.data.lastChatAt = now;
+
+        io.to(room.id).emit('chatMessage', {
+            id: socket.id,
+            name: player.name,
+            text: body,
+        });
     });
 
     // ── 切断
@@ -476,6 +534,7 @@ io.on('connection', (socket) => {
             room.votes = {};
             room.deadIds = new Set();
             room.usedAbilities = new Set();
+            room.votingStarted = false;
             io.to(room.id).emit('gameAborted', {
                 message: `${leaver.name}さんが退出したため、ロビーに戻ります。`,
             });
