@@ -615,6 +615,11 @@ socket.on('gameResults', (data) => {
     const isVillageWin = data.winner?.includes('村人');
     const color = isWolfWin ? 'var(--wolf)' : (isVillageWin ? 'var(--village)' : 'var(--dim)');
 
+    const assassinatedNames = data.finalPlayers.filter(p => p.isAssassinated).map(p => p.name);
+
+    // 投票ボタンが残っていると結果画面に紛れるので片付ける
+    document.querySelectorAll('.vote-button').forEach(b => b.remove());
+
     // 全員の正体を公開（白狼も白狼として出る）
     data.finalPlayers.forEach(p => {
         const cardDiv = document.getElementById(`player-card-${p.id || p.name}`);
@@ -648,7 +653,10 @@ socket.on('gameResults', (data) => {
             <div class="banner">RESULT</div>
             <h2 style="color:${color}">${data.winner && data.winner !== 'なし' ? data.winner + 'の勝利！' : 'ゲーム不成立'}</h2>
             ${data.message ? `<div class="msg">${data.message}</div>` : ''}
-            <div class="executed">処刑された人：<b>${data.executedPlayer || 'なし'}</b></div>
+            <div class="executed">
+                処刑：<b>${data.executedPlayer || 'なし'}</b>
+                ${assassinatedNames.length ? `<br>暗殺：<b>${assassinatedNames.join('、')}</b>` : ''}
+            </div>
             <button class="btn btn-ghost" onclick="location.reload()">待合室に戻る</button>
         </div>
     `;

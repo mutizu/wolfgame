@@ -269,7 +269,11 @@ function processFinalResults(room) {
         );
     }
 
-    const winner = determineWinner(finalPlayers, executedPlayer);
+    // 暗殺も処刑と同じ扱いにするため、暗殺された人を渡す
+    const assassinatedPlayers = finalPlayers.filter(p => room.deadIds.has(p.id || p.name));
+    const winner = determineWinner(finalPlayers, executedPlayer, assassinatedPlayers);
+
+    console.log(`[勝敗] ${room.id}: ${winner.team} / ${winner.message}`);
 
     io.to(room.id).emit('gameResults', {
         executedPlayer: executedPlayer ? executedPlayer.name : 'なし',

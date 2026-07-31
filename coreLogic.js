@@ -200,38 +200,39 @@ function assignRoles(players, pool) {
 // 4. 勝利判定ロジック
 // ==========================================================
 
-function determineWinner(players, executedTarget) {
-    // 1. 誰も処刑されなかった場合
-    if (!executedTarget) {
-        // 平和村判定（場に人狼が残っているか？などのルールはお好みで）
-        return { team: '人狼チーム', message: '誰も処刑されませんでした。' };
+/**
+ * 勝敗を決める。
+ * 処刑と暗殺は同じ扱いで、どちらであっても「狼が退場したか」だけを見る。
+ * 狼（人狼・白狼）が1人でも退場していれば村人陣営の勝ち。
+ *
+ * @param {Array}  players            全プレイヤー（最終的な役職が入っている）
+ * @param {Object} executedPlayer     投票で処刑された人。いなければ null
+ * @param {Array}  assassinatedPlayers 暗殺された人の配列
+ */
+function determineWinner(players, executedPlayer, assassinatedPlayers = []) {
+    const isWolf = (p) => !!(p && ROLE_META[p.role]?.isWerewolf);
+
+    const deadWolfByAssassin = assassinatedPlayers.find(isWolf);
+    if (deadWolfByAssassin) {
+        return {
+            team: '村人チーム',
+            message: `暗殺された${deadWolfByAssassin.name}は${deadWolfByAssassin.role}でした。村人チームの勝利です！`,
+        };
     }
 
-    // 2. 処刑された人のデータを取り出す
-    let executedRole = '';
-
-    // パターンA: server.js が「オブジェクト」を渡してきた場合
-    if (typeof executedTarget === 'object' && executedTarget.role) {
-        executedRole = executedTarget.role;
-    } 
-    // パターンB: server.js が「名前（文字列）」を渡してきた場合
-    else if (typeof executedTarget === 'string') {
-        const foundPlayer = players.find(p => p.name === executedTarget || p.id === executedTarget);
-        if (foundPlayer) {
-            executedRole = foundPlayer.role;
-        }
+    if (isWolf(executedPlayer)) {
+        return {
+            team: '村人チーム',
+            message: `処刑された${executedPlayer.name}は${executedPlayer.role}でした。村人チームの勝利です！`,
+        };
     }
 
-    console.log(`[勝敗判定] 処刑されたのは: ${executedRole}`); // デバッグ用ログ
-
-    // 3. 役職で勝敗を決める
-    // もし ROLE_META があるならそれを使う、なければ直接文字比較
-    if (executedRole === '人狼' || (typeof ROLE_META !== 'undefined' && ROLE_META[executedRole]?.isWerewolf)) {
-        return { team: '村人チーム', message: '人狼を処刑しました！村人の勝利です！' };
-    } else {
-        return { team: '人狼チーム', message: '人狼以外を処刑しました。人狼チームの勝利です！' };
+    if (!executedPlayer && assassinatedPlayers.length === 0) {
+        return { team: '人狼チーム', message: '誰も退場しませんでした。' };
     }
-} // ← determineWinner 関数の終わり
+
+    return { team: '人狼チーム', message: '狼を1人も退場させられませんでした。' };
+}
 
 // ==========================================================
 // 5. サーバーで利用できるようにエクスポート
