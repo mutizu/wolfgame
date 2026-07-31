@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" width="1200" height="1200">
+  <!-- SNSのリンクプレビュー用。
+       正方形で作ってあるが、主要な要素は中央（y=285〜915）に収めてあるので、
+       1.91:1 に切り取られても内容が欠けない。 -->
+  <rect width="1200" height="1200" fill="#f7f8fa"/>
+
+  <!-- 人狼のアイコン -->
+  <g transform="translate(536, 300) scale(2.0)">
+    <path d="M12 14l6 11 14-5 14 5 6-11 3 19c0 14-10 24-23 24S9 47 9 33z" fill="#6b7280"/>
+    <circle cx="24" cy="34" r="3" fill="#ef4444"/>
+    <circle cx="40" cy="34" r="3" fill="#ef4444"/>
+    <path d="M32 40l-4 6h8z" fill="#4b5563"/>
+  </g>
+
+  <g font-family="Hiragino Sans, Noto Sans JP, sans-serif" text-anchor="middle">
+    <text x="600" y="600" font-size="92" font-weight="700" fill="#16181d">ワンナイト人狼</text>
+    <text x="600" y="672" font-size="38" fill="#5b6270">合言葉ひとつで、すぐ遊べる</text>
+
+    <g font-size="30" fill="#5b6270">
+      <rect x="292" y="740" width="230" height="60" rx="30" fill="#ffffff" stroke="#e2e5ea" stroke-width="2"/>
+      <text x="407" y="779">登録不要・無料</text>
+      <rect x="538" y="740" width="180" height="60" rx="30" fill="#ffffff" stroke="#e2e5ea" stroke-width="2"/>
+      <text x="628" y="779">2〜12人</text>
+      <rect x="734" y="740" width="230" height="60" rx="30" fill="#ffffff" stroke="#e2e5ea" stroke-width="2"/>
+      <text x="849" y="779">スマホで参加</text>
+    </g>
+  </g>
+</svg>

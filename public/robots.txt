@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://wolfgame-8b8u.onrender.com/sitemap.xml

@@ -3,7 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ワンナイト人狼</title>
+<title>ワンナイト人狼オンライン｜合言葉ひとつで、登録不要ですぐ遊べる</title>
+<meta name="description" content="ブラウザで遊べる無料のワンナイト人狼。部屋を作って合言葉か招待リンクを送るだけで、2〜12人がスマホから参加できます。夜のない独自ルールで、白狼・暗殺者・付き人など7種類の役職を自由に組み合わせられます。登録もインストールも不要。">
+
+<link rel="canonical" href="https://wolfgame-8b8u.onrender.com/">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://wolfgame-8b8u.onrender.com/">
+<meta property="og:title" content="ワンナイト人狼オンライン｜合言葉ひとつで、登録不要ですぐ遊べる">
+<meta property="og:description" content="部屋を作って合言葉か招待リンクを送るだけ。2〜12人がスマホから参加できる無料のワンナイト人狼です。">
+<meta property="og:image" content="https://wolfgame-8b8u.onrender.com/images/ogp.png">
+<meta property="og:site_name" content="ワンナイト人狼オンライン">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M12 14l6 11 14-5 14 5 6-11 3 19c0 14-10 24-23 24S9 47 9 33z' fill='%236b7280'/%3E%3Ccircle cx='24' cy='34' r='3' fill='%23ef4444'/%3E%3Ccircle cx='40' cy='34' r='3' fill='%23ef4444'/%3E%3C/svg%3E">
 
 <style>
@@ -78,6 +89,34 @@ button{font-family:inherit}
   margin-bottom:10px;
 }
 
+/* ---------- 入口の説明（遊び方・役職・FAQ） ---------- */
+.about{margin-top:36px;padding-top:24px;border-top:1px solid var(--border)}
+.about h2{font-size:1.05rem;font-weight:700;margin:28px 0 10px}
+.about h2:first-child{margin-top:0}
+.about p{font-size:.9rem;color:var(--dim);margin:8px 0}
+.about ul{margin:8px 0 8px 1.3em;font-size:.9rem;color:var(--dim)}
+.about li{margin:5px 0}
+.about b{color:var(--text)}
+
+.steps{margin:8px 0 8px 1.3em;font-size:.9rem;color:var(--dim)}
+.steps li{margin:10px 0}
+
+.about details{
+  border:1px solid var(--border);border-radius:8px;
+  padding:10px 13px;margin:8px 0;background:var(--surface);
+}
+.about details summary{cursor:pointer;font-weight:600;font-size:.9rem;color:var(--text)}
+.about details p{margin:8px 0 0}
+
+.about-role{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:9px 0;border-bottom:1px solid var(--border);
+}
+.about-role:last-child{border-bottom:none}
+.about-role img{width:28px;height:28px;flex-shrink:0;margin-top:2px}
+.about-role .rname{font-weight:600;font-size:.9rem;display:flex;align-items:center;gap:6px}
+.about-role .rdesc{font-size:.8rem;color:var(--faint);line-height:1.55}
+
 /* ---------- 待合室 ---------- */
 .room-code{
   text-align:center;font-size:2.2rem;font-weight:700;
@@ -109,7 +148,7 @@ button{font-family:inherit}
 .role-row img{width:30px;height:30px;flex-shrink:0}
 .role-row .meta{flex:1;min-width:0}
 .role-row .rname{font-weight:600;font-size:.9rem;display:flex;align-items:center;gap:6px}
-.role-row .team-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.team-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;display:inline-block}
 .team-wolf .team-dot{background:var(--wolf)}
 .team-village .team-dot{background:var(--village)}
 .role-row .rdesc{font-size:.74rem;color:var(--faint);line-height:1.5}
@@ -341,6 +380,45 @@ button{font-family:inherit}
     <input type="text" id="room-code-input" class="field" placeholder="ABCD" maxlength="6" autocapitalize="characters" autocomplete="off" spellcheck="false">
     <button id="join-room-button" class="btn btn-sub">この合言葉で入る</button>
   </div>
+
+  <section class="about">
+    <h2>遊び方</h2>
+    <ol class="steps">
+      <li><b>誰か1人が部屋を作る</b><br>4文字の合言葉が発行されます。</li>
+      <li><b>合言葉か招待リンクを配る</b><br>受け取った人は自分のスマホから入れます。インストールも登録も不要です。</li>
+      <li><b>役職を決めて開始</b><br>ホストが構成を決めたら、議論 → 投票 → 結果まで一気に進みます。1試合は数分で終わります。</li>
+    </ol>
+
+    <h2>このゲームのルール</h2>
+    <p>市販のワンナイト人狼とは違い、<b>夜のターンがありません。</b>ゲームが始まると同時に自分の役職が分かり、能力も議論中に使います。全員が同じ時間を共有したまま進むので、誰が何をしたのかを推理する材料が会話の中に出てきます。</p>
+    <ul>
+      <li>配られるカードはプレイヤーの人数より多く、<b>余りは中央に伏せられます</b>。だから「その役職は場にいない」とは限りません。</li>
+      <li>能力はそれぞれ<b>1ゲームに1回だけ</b>、議論中にしか使えません。</li>
+      <li>投票は1回きり。<b>最多得票の1人が処刑</b>され、同数なら誰も処刑されません。</li>
+      <li><b>人狼か白狼が退場すれば村人陣営の勝ち</b>です。処刑でも暗殺でも構いません。</li>
+    </ul>
+
+    <h2>役職</h2>
+    <div id="about-roles"></div>
+
+    <h2>よくある質問</h2>
+    <details>
+      <summary>何人から遊べますか？</summary>
+      <p>2人から12人まで遊べます。人数が少ないと推理の余地が減るので、4人以上をおすすめします。人数が足りないときはCPUを1人追加できますが、CPUは議論にも投票にも参加しません。</p>
+    </details>
+    <details>
+      <summary>通話しながら遊ぶ必要がありますか？</summary>
+      <p>いりません。画面内にチャットがあるので、文字だけでも遊べます。通話しながらチャットを補助に使うこともできます。</p>
+    </details>
+    <details>
+      <summary>他の人の役職が見えてしまうことはありませんか？</summary>
+      <p>ありません。自分以外の役職はそもそも端末に送られていないので、開発者ツールを開いても見えない作りになっています。</p>
+    </details>
+    <details>
+      <summary>最初のアクセスが遅いのですが</summary>
+      <p>しばらく誰も遊んでいないとサーバーが休止するため、最初の1人だけ40〜60秒ほど待つことがあります。2人目以降はすぐ入れます。</p>
+    </details>
+  </section>
 </div>
 
 <!-- ========== 待合室 ========== -->

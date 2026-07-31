@@ -75,8 +75,32 @@ async function loadRoles() {
         return;
     }
     unlockEntryButtons();
+    renderAboutRoles();
     if (Object.keys(currentRoleConfig).length) renderRoleSettings();
     maybeAutoJoin();
+}
+
+/** 入口ページの役職紹介。roles.csv をそのまま使うので説明が二重管理にならない */
+function renderAboutRoles() {
+    const box = document.getElementById('about-roles');
+    if (!box) return;
+    box.innerHTML = '';
+
+    ROLE_ORDER.forEach(name => {
+        const role = ROLES[name];
+        const row = document.createElement('div');
+        row.className = 'about-role ' + (role.team === '人狼陣営' ? 'team-wolf' : 'team-village');
+        row.innerHTML = `
+            <img src="images/${role.image}" alt="" onerror="this.style.visibility='hidden'">
+            <div>
+                <div class="rname"><span class="team-dot"></span>${role.name}
+                    <span style="font-size:.72rem;color:var(--faint);font-weight:400">${role.team}</span>
+                </div>
+                <div class="rdesc">${role.description}</div>
+            </div>
+        `;
+        box.appendChild(row);
+    });
 }
 
 // ----------------------------------------------------------
