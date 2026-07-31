@@ -657,10 +657,26 @@ socket.on('gameResults', (data) => {
                 処刑：<b>${data.executedPlayer || 'なし'}</b>
                 ${assassinatedNames.length ? `<br>暗殺：<b>${assassinatedNames.join('、')}</b>` : ''}
             </div>
-            <button class="btn btn-ghost" onclick="location.reload()">待合室に戻る</button>
+            <div class="result-actions">
+                ${isHost
+                    ? `<button class="btn" id="result-again">同じ構成でもう一度</button>`
+                    : `<div class="result-waiting">ホストがもう一度始めるのを待っています</div>`}
+                <button class="btn btn-sub" id="result-lobby">待合室に戻る（構成を変える）</button>
+            </div>
         </div>
     `;
     document.body.appendChild(panel);
+
+    // リロードせずにその場で次の試合へ。全員が同時に再読込すると部屋が消えるため
+    const againBtn = document.getElementById('result-again');
+    if (againBtn) {
+        againBtn.onclick = () => {
+            againBtn.disabled = true;
+            againBtn.textContent = '開始しています...';
+            socket.emit('startGame', { useCpu: cpuToggle.checked });
+        };
+    }
+    document.getElementById('result-lobby').onclick = returnToLobby;
 
     document.querySelector('.phase-header h2').textContent = '結果';
     appendChatSystem(
@@ -674,8 +690,21 @@ socket.on('gameResults', (data) => {
 // 進行不能・エラー
 // ----------------------------------------------------------
 
-// プレイ中に誰か落ちた場合。URLに合言葉が残っているので再読込で同じ部屋に戻る
-socket.on('gameAborted', (d) => { alert(d.message); location.reload(); });
+/** 結果画面や中断から待合室へ戻る。再読込しないので部屋から抜けない */
+function returnToLobby() {
+    const panel = document.getElementById('result-panel');
+    if (panel) panel.remove();
+
+    gameScreen.style.display = 'none';
+    lobbyScreen.style.display = 'block';
+    socket.emit('requestLobbyUpdate');   // 最新の人数・構成をもらう
+}
+
+// プレイ中に誰かが落ちた場合。再読込せずに待合室へ戻す
+socket.on('gameAborted', (d) => {
+    showNotice(d.message, 'notice-wolf');
+    returnToLobby();
+});
 
 socket.on('error_message', (m) => {
     alert(m);

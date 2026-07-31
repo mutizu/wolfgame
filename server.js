@@ -295,6 +295,9 @@ function processFinalResults(room) {
     room.deadIds = new Set();
     room.usedAbilities = new Set();
     room.votingStarted = false;
+
+    // 結果画面から待合室に戻ったときに最新の状態が出るようにしておく
+    broadcastLobby(room);
 }
 
 /** 投票できる全員が投票し終わったら結果へ進む */
