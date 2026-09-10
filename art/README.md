@@ -54,7 +54,7 @@ multiple views, blurry, cropped, out of frame, busy background, cluttered, nsfw
 | 村人 | `young villager girl, (long brown hair:1.3), (braid:1.2), brown eyes, (linen tunic:1.2), (beige hooded cloak:1.2), high collar, long sleeves, calm ordinary friendly expression, warm brown background` |
 | 占い師 | `fortune teller, (long blue hair:1.2), (golden eyes:1.2), gold star hair ornament, (pale peach skin:1.3), (dark indigo robe:1.2), gold trim, high collar, mystical serene expression, indigo background` |
 | 付き人 | `(maid:1.4), (white maid headdress:1.4), (dark green maid dress:1.4), (white apron:1.3), high collar, long sleeves, (long dark green hair:1.2), grey eyes, gentle attentive expression, slight bow, sage green background` |
-| てるてる | `(teru teru bozu:1.3), (round white cloth hood:1.4), white poncho, covering head, (hopeful gentle smile:1.2), closed happy eyes, small red ribbon, (warm amber background:1.3)` |
+| てるてる | `(teru teru bozu:1.3), (round white cloth hood:1.4), (white poncho:1.2), covering head, (pale peach skin:1.4), (fair skin:1.3), (hopeful gentle smile:1.2), closed happy eyes, black hair, red ribbon at collar` ／ 背景は後述の方法で青緑に差し替え |
 | 啓蒙家 | `scholar girl, (round glasses:1.3), (holding an open book:1.3), (long pink hair:1.2), (high collar academic robe:1.3), long sleeves, calm intelligent expression, (rose pink background:1.3)` |
 
 カード裏面だけは人物ではないので共通プロンプトを使わない。
@@ -69,7 +69,7 @@ flat color, bold outline, dark indigo and silver, simple background
 ## 追加するときの注意
 
 **役職ごとに背景色を割り当てること。** 一覧のアイコンは42pxまで縮み、その大きさでは造形がほぼ消える。
-見分けの手がかりは形ではなく色になるので、既存の9色（暗赤・水色・紫・紺・茶・藍・セージ緑・琥珀・ローズ）と
+見分けの手がかりは形ではなく色になるので、既存の9色（暗赤・水色・紫・紺・茶・藍・セージ緑・ローズ・青緑）と
 かぶらない色を選ぶ。作ったら必ず28pxに縮小して判別できるか確認する。
 
 その他、実際にはまった点：
@@ -82,3 +82,25 @@ flat color, bold outline, dark indigo and silver, simple background
 - 怖くしないこと。影で顔を潰すとホラー寄りになるうえ、28pxで真っ黒な塊になって判別できない。
   「怪しさ」は暗さではなく**表情**で出す（細めた目・含み笑い・口元の指）
 - `servant attendant` では軍服姿になる。付き人は `maid` と明示する
+
+## 背景色が指定通りにならないとき
+
+てるてるでは `teal` / `turquoise` / `mustard yellow` / `amber` のどれを指定しても
+赤か暗色になり、さらに `warm amber background` は**肌をオレンジに**した。
+モデルが概念ごとに背景色の癖を持っているらしく、プロンプトでは押し切れない。
+
+**キャラだけ良い状態で出して、背景は後から塗り替えるほうが速い。**
+背景は平坦な単色なので、四隅の色を基準に縁から塗りつぶせば線画で止まる。
+
+```python
+# 四隅の中央値を背景色とみなし、色距離がTOL以内の画素を縁からBFSで塗る。
+# 太い輪郭線が壁になるので、髪や布の中までは入らない。
+TOL = 60
+dist = np.sqrt(((a - bg) ** 2).sum(axis=2))
+cand = dist < TOL
+# ... 縁からBFS ...
+alpha = np.clip(1 - dist / TOL, 0, 1)[..., None] * mask[..., None]
+out = (out * (1 - alpha) + TARGET * alpha).astype(np.uint8)
+```
+
+`alpha` を距離で減衰させると境界のジャギが出ない。てるてるは TARGET=(20,116,110)。
