@@ -371,25 +371,6 @@ function votingPayload(room) {
     return { players: [...humanPlayers, ...comPlayers] };
 }
 
-/**
- * CPUの投票。議論に参加できない相手なので、読み合いはせず無作為に入れる。
- * 投票しないままだと「黙っているCPUに全員で入れて終わり」になり、
- * CPUを入れた試合が毎回同じ展開になってしまう。
- */
-function castCpuVotes(room) {
-    if (!room.gameSetup) return;
-    room.gameSetup.players
-        .filter(p => p.type === 'computer')
-        .forEach(cpu => {
-            const key = cpu.id || cpu.name;
-            if (room.votes[key] !== undefined) return;
-            const targets = validTargetsFor(room, key);
-            if (!targets.length) return;
-            const pick = targets[Math.floor(Math.random() * targets.length)];
-            room.votes[key] = pick.id || pick.name;
-        });
-}
-
 function processFinalResults(room) {
     const finalPlayers = room.gameSetup.players;
     const voteCounts = {};
@@ -627,8 +608,6 @@ io.on('connection', (socket) => {
 
         room.votingStarted = true;
         io.to(room.id).emit('startVoting', votingPayload(room));
-
-        castCpuVotes(room);
 
         // 暗殺で投票できる人が誰もいなくなっている場合、
         // 誰の投票も届かないため、ここで判定を起動しないと進行不能になる
