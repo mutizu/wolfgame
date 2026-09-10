@@ -248,6 +248,17 @@ button{font-family:inherit}
 }
 .ability-btn:hover,.vote-button:hover{background:var(--accent-soft)}
 .ability-assassinate{border-color:var(--wolf);color:var(--wolf)}
+.ability-accuse{border-color:var(--accent);color:var(--accent)}
+
+/* 告発で公開された陣営。役職名は出さない */
+.accused-tag{
+  position:absolute;bottom:0;width:100%;
+  font-size:.68rem;font-weight:800;text-align:center;padding:2px 0;
+  color:#fff;
+}
+.accused-tag.is-wolf{background:rgba(220,53,69,.92)}
+.accused-tag.is-village{background:rgba(37,99,235,.92)}
+.accused-tag.is-solo{background:rgba(180,83,9,.92)}
 .ability-assassinate:hover{background:var(--surface-2)}
 .vote-button.is-self{
   border-color:var(--border);color:var(--faint);background:var(--surface);

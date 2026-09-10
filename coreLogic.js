@@ -57,6 +57,13 @@ function readVoteWeight(cells, col, roleName) {
     return n;
 }
 
+/** TRUE/FALSE の列を読む。列が無い、または空欄なら false */
+function readFlag(cells, col, columnName) {
+    const idx = col(columnName);
+    if (idx === -1) return false;
+    return (cells[idx] || '').trim().toUpperCase() === 'TRUE';
+}
+
 function loadRoles() {
     const csv = fs.readFileSync(path.join(__dirname, 'roles.csv'), 'utf8');
     const lines = csv.split(/\r?\n/).filter(l => l.trim() !== '');
@@ -95,6 +102,8 @@ function loadRoles() {
             disguiseAs: cells[col('偽装先')] || null,
             defaultCount: Number.isFinite(count) ? Math.max(0, Math.trunc(count)) : 0,
             voteWeight: readVoteWeight(cells, col, name),
+            // 狂信者のように、開始時点で狼が誰か分かる役職
+            seesWolves: readFlag(cells, col, '狼が見える'),
             image: cells[col('画像')] || 'backcard.webp',
             description: cells[col('説明')] || '',
         };

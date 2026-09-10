@@ -385,7 +385,18 @@ socket.on('gameStarted', (data) => {
     discussionEndButton.disabled = !isHost;
     discussionEndButton.textContent = isHost ? '投票開始' : '議論中...';
     document.querySelector('.phase-header h2').textContent = '議論中';
+
+    // 6. 狂信者にだけ届く狼の情報。狼側はこちらを知らない
+    showKnownWolves(data.knownWolves);
 });
+
+/** 狂信者が狼を把握するための表示。本人にしか届かない情報 */
+function showKnownWolves(names) {
+    if (!Array.isArray(names) || names.length === 0) return;
+    const list = names.join('、');
+    showNotice(`人狼は ${list} です。あなたが狂信者であることは、人狼側には分かりません。`, 'notice-wolf');
+    appendChatSystem(`（あなただけに表示）人狼：${list}`);
+}
 
 // ----------------------------------------------------------
 // 役職の能力（すべて議論中に1回だけ使う）
@@ -408,6 +419,7 @@ function setupAbilityUI(players) {
         fortune: 'fortuneAction',
         assassinate: 'assassinateAction',
         follow: 'followerAction',
+        accuse: 'accuseAction',
     }[role.ability];
     if (!eventName) return;
 
@@ -569,9 +581,28 @@ socket.on('followerResult', (res) => {
     }
 
     showNotice(`${res.targetName} は「${res.role}」でした。あなたも ${res.role} になりました。`, 'notice-teal');
+    showKnownWolves(res.knownWolves);
 });
 
 // 暗殺（全員に公開される）
+// 告発の結果。役職名は伏せ、陣営だけが全員に公開される
+socket.on('accuseResult', (data) => {
+    const card = document.getElementById(`player-card-${data.targetId}`);
+    if (card) {
+        const imgCont = card.querySelector('.role-image-container');
+        if (imgCont && !imgCont.querySelector('.accused-tag')) {
+            const tag = document.createElement('div');
+            tag.className = 'accused-tag ' + (data.team === '人狼陣営' ? 'is-wolf'
+                : (data.team === '村人陣営' ? 'is-village' : 'is-solo'));
+            tag.textContent = data.team;
+            imgCont.appendChild(tag);
+        }
+    }
+    appendChatSystem(`告発：${data.targetName} は ${data.team} です`);
+    showNotice(`${data.targetName} は ${data.team} でした。`,
+        data.team === '人狼陣営' ? 'notice-wolf' : 'notice-teal');
+});
+
 socket.on('playerAssassinated', (data) => {
     deadIds.add(data.targetId);
 

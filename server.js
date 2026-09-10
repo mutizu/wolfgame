@@ -337,12 +337,20 @@ function startNewGame(room, useCpu) {
  * 以前は全員に全員の役職を送って画面側で隠していただけだったため、
  * 開発者ツールを開けば全部見えてしまっていた。他人の役職は送らない。
  */
+/** 狼（人狼・白狼）の名前。白狼は本人に自覚がないが、狂信者からは狼に見える */
+function wolfNames(room) {
+    return room.gameSetup.players
+        .filter(p => ROLES[p.role]?.isWerewolf)
+        .map(p => p.name);
+}
+
 function emitGameStarted(room, onlyId = null) {
     const roster = room.gameSetup.players;
 
     for (const me of roster) {
         if (me.type !== 'human') continue;
         if (onlyId && me.id !== onlyId) continue;   // 復帰した人にだけ送り直す場合
+
 
         io.to(me.id).emit('gameStarted', {
             players: roster.map(other => ({
@@ -358,6 +366,9 @@ function emitGameStarted(room, onlyId = null) {
             // 途中で復帰した人が、暗殺状況や能力の使用済み判定を復元できるようにする
             deadIds: [...room.deadIds],
             abilityUsed: room.usedAbilities.has(me.id),
+
+            // 狂信者にだけ、狼が誰かを渡す。狼側には狂信者が誰か伝えない
+            knownWolves: ROLES[me.role]?.seesWolves ? wolfNames(room) : null,
         });
     }
 }
@@ -528,11 +539,14 @@ io.on('connection', (socket) => {
         const room = getRoom(socket);
         if (!room || !room.isGameStarted || !room.gameSetup) return;
         if (room.votingStarted) return;                  // 能力は議論中だけ
+        if (room.usedAbilities.has(socket.id)) return;   // 能力は1回だけ
+        if (room.deadIds.has(socket.id)) return;         // 暗殺されていたら使えない
 
         const me = room.gameSetup.players.find(p => p.id === socket.id);
         if (!me || !hasAbility(me.role, 'fortune')) return;
 
         if (data?.targetType === 'center') {
+            room.usedAbilities.add(socket.id);
             socket.emit('fortuneResult', {
                 targetType: 'center',
                 role: room.gameSetup.centerCards.join(' / '),
@@ -542,6 +556,7 @@ io.on('connection', (socket) => {
 
         const target = room.gameSetup.players.find(p => (p.id || p.name) === data?.targetId);
         if (target) {
+            room.usedAbilities.add(socket.id);
             // 占い師には本当の役職を返す（白狼は白狼と分かる）
             socket.emit('fortuneResult', { targetId: data.targetId, role: target.role });
         }
@@ -606,7 +621,36 @@ io.on('connection', (socket) => {
             targetId: target.id || target.name,
             targetName: target.name,
             role: acquired,
+            // 付いた先が狂信者だった場合、この時点から狼が見えるようにする
+            knownWolves: ROLES[acquired]?.seesWolves ? wolfNames(room) : null,
         });
+    });
+
+    // ── 告発者の行動（結果は全員に公開される）
+    socket.on('accuseAction', (data) => {
+        const room = getRoom(socket);
+        if (!room || !room.isGameStarted || !room.gameSetup) return;
+        if (room.votingStarted) return;                  // 能力は議論中だけ
+        if (room.usedAbilities.has(socket.id)) return;
+        if (room.deadIds.has(socket.id)) return;         // 暗殺されていたら使えない
+
+        const me = room.gameSetup.players.find(p => p.id === socket.id);
+        if (!me || !hasAbility(me.role, 'accuse')) return;
+
+        const target = room.gameSetup.players.find(p => (p.id || p.name) === data?.targetId);
+        if (!target || (target.id || target.name) === socket.id) return;
+
+        room.usedAbilities.add(socket.id);
+
+        // 公開するのは陣営だけ。役職名は出さない。
+        // 誰が告発したかも伝えない（暗殺の通知と揃えている）
+        io.to(room.id).emit('accuseResult', {
+            targetId: target.id || target.name,
+            targetName: target.name,
+            team: ROLES[target.role]?.team || '不明',
+        });
+
+        console.log(`📣 ${room.id}: ${target.name} が告発された → ${ROLES[target.role]?.team}`);
     });
 
     // ── 投票フェーズ開始（ホストのみ）

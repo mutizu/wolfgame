@@ -56,6 +56,8 @@ multiple views, blurry, cropped, out of frame, busy background, cluttered, nsfw
 | 付き人 | `(maid:1.4), (white maid headdress:1.4), (dark green maid dress:1.4), (white apron:1.3), high collar, long sleeves, (long dark green hair:1.2), grey eyes, gentle attentive expression, slight bow, sage green background` |
 | てるてる | `(teru teru bozu:1.3), (round white cloth hood:1.4), (white poncho:1.2), covering head, (pale peach skin:1.4), (fair skin:1.3), (hopeful gentle smile:1.2), closed happy eyes, black hair, red ribbon at collar` ／ 背景は後述の方法で青緑に差し替え |
 | 啓蒙家 | `scholar girl, (round glasses:1.3), (holding an open book:1.3), (long pink hair:1.2), (high collar academic robe:1.3), long sleeves, calm intelligent expression, (rose pink background:1.3)` |
+| 狂信者 | `(zealot girl:1.2), (fervent devoted expression:1.3), (clasped hands:1.2), (long dark red hair:1.2), (high collar ceremonial robe:1.3), gold pendant, (pale peach skin:1.4), intense narrow eyes` ／ 背景を錆オレンジ(154,52,18)に差し替え |
+| 告発者 | `(judge girl:1.2), (holding documents:1.3), (stern serious expression:1.3), (short blonde hair:1.2), (high collar formal coat:1.3), long sleeves, (pale peach skin:1.4), sharp eyes, raised hand` ／ 背景をマスタード金(161,98,7)に差し替え |
 
 カード裏面だけは人物ではないので共通プロンプトを使わない。
 
@@ -69,8 +71,12 @@ flat color, bold outline, dark indigo and silver, simple background
 ## 追加するときの注意
 
 **役職ごとに背景色を割り当てること。** 一覧のアイコンは42pxまで縮み、その大きさでは造形がほぼ消える。
-見分けの手がかりは形ではなく色になるので、既存の9色（暗赤・水色・紫・紺・茶・藍・セージ緑・ローズ・青緑）と
-かぶらない色を選ぶ。作ったら必ず28pxに縮小して判別できるか確認する。
+見分けの手がかりは形ではなく色になるので、色は勘で選ばず**測って決める**。28pxに縮めた平均色を出し、既存の全役職との距離を計算して、
+**最小距離がいちばん大きくなる背景色**を選ぶ。既存どうしの最小距離は37（人狼↔狂人／付き人↔てるてる）なので、
+これを下回る候補は落とす。狂信者は錆オレンジで45、告発者はマスタード金で52だった。
+
+この方法で候補も落とせる。狂信者の初稿は赤い法衣のキャラで、**背景をどの色にしても人狼との距離が17**にしかならず、
+さらに背景に金の輪があって平坦でないため塗り替えも効かなかった（検出0%）ので不採用にした。
 
 その他、実際にはまった点：
 
