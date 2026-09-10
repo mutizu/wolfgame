@@ -54,6 +54,8 @@ multiple views, blurry, cropped, out of frame, busy background, cluttered, nsfw
 | 村人 | `young villager girl, (long brown hair:1.3), (braid:1.2), brown eyes, (linen tunic:1.2), (beige hooded cloak:1.2), high collar, long sleeves, calm ordinary friendly expression, warm brown background` |
 | 占い師 | `fortune teller, (long blue hair:1.2), (golden eyes:1.2), gold star hair ornament, (pale peach skin:1.3), (dark indigo robe:1.2), gold trim, high collar, mystical serene expression, indigo background` |
 | 付き人 | `(maid:1.4), (white maid headdress:1.4), (dark green maid dress:1.4), (white apron:1.3), high collar, long sleeves, (long dark green hair:1.2), grey eyes, gentle attentive expression, slight bow, sage green background` |
+| てるてる | `(teru teru bozu:1.3), (round white cloth hood:1.4), white poncho, covering head, (hopeful gentle smile:1.2), closed happy eyes, small red ribbon, (warm amber background:1.3)` |
+| 啓蒙家 | `scholar girl, (round glasses:1.3), (holding an open book:1.3), (long pink hair:1.2), (high collar academic robe:1.3), long sleeves, calm intelligent expression, (rose pink background:1.3)` |
 
 カード裏面だけは人物ではないので共通プロンプトを使わない。
 
@@ -67,7 +69,7 @@ flat color, bold outline, dark indigo and silver, simple background
 ## 追加するときの注意
 
 **役職ごとに背景色を割り当てること。** 一覧のアイコンは42pxまで縮み、その大きさでは造形がほぼ消える。
-見分けの手がかりは形ではなく色になるので、既存の7色（暗赤・水色・紫・紺・茶・藍・セージ緑）と
+見分けの手がかりは形ではなく色になるので、既存の9色（暗赤・水色・紫・紺・茶・藍・セージ緑・琥珀・ローズ）と
 かぶらない色を選ぶ。作ったら必ず28pxに縮小して判別できるか確認する。
 
 その他、実際にはまった点：

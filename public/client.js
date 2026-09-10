@@ -53,13 +53,22 @@ function teamClass(name) {
     const t = roleOf(name).team;
     if (t === '人狼陣営') return 'border-red';
     if (t === '村人陣営') return 'border-blue';
+    if (t === '単独陣営') return 'border-solo';
     return 'border-gray';
 }
 function bgClass(name) {
     const t = roleOf(name).team;
     if (t === '人狼陣営') return 'bg-werewolf';
     if (t === '村人陣営') return 'bg-villager';
+    if (t === '単独陣営') return 'bg-solo';
     return 'bg-gray';
+}
+
+/** 一覧の行に付ける陣営クラス。陣営が3種類あるので二分岐にはできない */
+function teamRowClass(team) {
+    if (team === '人狼陣営') return 'team-wolf';
+    if (team === '単独陣営') return 'team-solo';
+    return 'team-village';
 }
 
 async function loadRoles() {
@@ -89,7 +98,7 @@ function renderAboutRoles() {
     ROLE_ORDER.forEach(name => {
         const role = ROLES[name];
         const row = document.createElement('div');
-        row.className = 'about-role ' + (role.team === '人狼陣営' ? 'team-wolf' : 'team-village');
+        row.className = 'about-role ' + teamRowClass(role.team);
         row.innerHTML = `
             <img src="images/${role.image}" alt="" onerror="this.style.visibility='hidden'">
             <div>
@@ -251,7 +260,7 @@ function renderRoleSettings() {
         total += count;
 
         const row = document.createElement('div');
-        row.className = 'role-row ' + (role.team === '人狼陣営' ? 'team-wolf' : 'team-village');
+        row.className = 'role-row ' + teamRowClass(role.team);
         row.innerHTML = `
             <img src="images/${role.image}" alt="" onerror="this.style.visibility='hidden'">
             <div class="meta">
@@ -652,9 +661,11 @@ socket.on('startVoting', (data) => {
 // ----------------------------------------------------------
 
 socket.on('gameResults', (data) => {
-    const isWolfWin = data.winner?.includes('人狼');
-    const isVillageWin = data.winner?.includes('村人');
-    const color = isWolfWin ? 'var(--wolf)' : (isVillageWin ? 'var(--village)' : 'var(--dim)');
+    const isWolfWin = data.winner === '人狼チーム';
+    const isVillageWin = data.winner === '村人チーム';
+    const isSoloWin = !isWolfWin && !isVillageWin && data.winner && data.winner !== 'なし';
+    const color = isWolfWin ? 'var(--wolf)'
+        : (isVillageWin ? 'var(--village)' : (isSoloWin ? 'var(--solo)' : 'var(--dim)'));
 
     const assassinatedNames = data.finalPlayers.filter(p => p.isAssassinated).map(p => p.name);
 
@@ -665,7 +676,9 @@ socket.on('gameResults', (data) => {
         const hit = v.target === data.executedPlayer;
         return `<div class="vote-row${hit ? ' is-hit' : ''}">`
             + `<span>${escapeHtml(v.voter)}</span><span class="arrow">→</span>`
-            + `<span>${escapeHtml(v.target)}</span></div>`;
+            + `<span>${escapeHtml(v.target)}`
+            + (v.weight > 1 ? `<span class="vote-weight">${v.weight}票</span>` : '')
+            + `</span></div>`;
     }).join('');
 
     // 投票ボタンが残っていると結果画面に紛れるので片付ける

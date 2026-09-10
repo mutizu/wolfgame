@@ -39,6 +39,24 @@ function parseCsvLine(line) {
     return cells.map(c => c.trim());
 }
 
+// 「単独陣営」は、その役職を持つ本人だけが勝つ陣営（てるてる）。
+// 人狼・村人のどちらのチームにも属さない。
+const TEAMS = ['人狼陣営', '村人陣営', '単独陣営'];
+const SOLO_TEAM = '単独陣営';
+
+/** 投票1回あたりの重み。啓蒙家のように1人で2票ぶん持つ役職がある */
+function readVoteWeight(cells, col, roleName) {
+    const idx = col('票の重み');
+    if (idx === -1) return 1;                 // 列そのものが無ければ全員1
+    const raw = (cells[idx] || '').trim();
+    if (raw === '') return 1;
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 1 || !Number.isInteger(n)) {
+        throw new Error(`roles.csv:「${roleName}」の票の重みが不正です（${raw}）。1以上の整数を指定してください。`);
+    }
+    return n;
+}
+
 function loadRoles() {
     const csv = fs.readFileSync(path.join(__dirname, 'roles.csv'), 'utf8');
     const lines = csv.split(/\r?\n/).filter(l => l.trim() !== '');
@@ -61,8 +79,8 @@ function loadRoles() {
         if (!name) continue;
 
         const team = cells[col('陣営')];
-        if (team !== '人狼陣営' && team !== '村人陣営') {
-            throw new Error(`roles.csv:「${name}」の陣営が不正です（${team}）。人狼陣営 か 村人陣営 を指定してください。`);
+        if (!TEAMS.includes(team)) {
+            throw new Error(`roles.csv:「${name}」の陣営が不正です（${team}）。${TEAMS.join(' / ')} のいずれかを指定してください。`);
         }
 
         const count = Number(cells[col('初期枚数')]);
@@ -76,6 +94,7 @@ function loadRoles() {
             // 白狼のように、本人のカードには別の役職名を見せたい場合に使う
             disguiseAs: cells[col('偽装先')] || null,
             defaultCount: Number.isFinite(count) ? Math.max(0, Math.trunc(count)) : 0,
+            voteWeight: readVoteWeight(cells, col, name),
             image: cells[col('画像')] || 'backcard.webp',
             description: cells[col('説明')] || '',
         };
@@ -115,6 +134,7 @@ function rolesForClient() {
         return {
             name: r.name,
             team: r.team,
+            voteWeight: r.voteWeight,
             ability: r.ability,
             abilityLabel: r.abilityLabel,
             image: r.image,
@@ -211,6 +231,17 @@ function assignRoles(players, pool) {
  */
 function determineWinner(players, executedPlayer, assassinatedPlayers = []) {
     const isWolf = (p) => !!(p && ROLE_META[p.role]?.isWerewolf);
+    const isSolo = (p) => !!(p && ROLES[p.role]?.team === SOLO_TEAM);
+
+    // 単独陣営（てるてる）は退場した時点で本人だけの勝ち。他のどの条件よりも先に見る。
+    // 暗殺も処刑と同じ「退場」として扱う（人狼の判定と揃えている）。
+    const soloOut = [executedPlayer, ...assassinatedPlayers].find(isSolo);
+    if (soloOut) {
+        return {
+            team: soloOut.role,
+            message: `${soloOut.name}は${soloOut.role}でした。${soloOut.name}の単独勝利です！ 他の全員が負けになります。`,
+        };
+    }
 
     const deadWolfByAssassin = assassinatedPlayers.find(isWolf);
     if (deadWolfByAssassin) {
@@ -247,5 +278,7 @@ module.exports = {
     ROLE_ORDER,
     defaultRoleConfig,
     rolesForClient,
+    TEAMS,
+    SOLO_TEAM,
 };
 

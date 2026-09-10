@@ -377,8 +377,15 @@ function processFinalResults(room) {
     let maxVotes = 0;
     let mostVotedTargetId = null;
 
-    for (const targetId of Object.values(room.votes)) {
-        voteCounts[targetId] = (voteCounts[targetId] || 0) + 1;
+    // 啓蒙家のように1人で2票ぶん持つ役職があるので、投票者ごとの重みで数える。
+    // 付き人が啓蒙家になった場合も gameSetup の役職が書き換わっているため反映される。
+    const weightOf = (voterId) => {
+        const voter = finalPlayers.find(p => (p.id || p.name) === voterId);
+        return ROLES[voter?.role]?.voteWeight || 1;
+    };
+
+    for (const [voterId, targetId] of Object.entries(room.votes)) {
+        voteCounts[targetId] = (voteCounts[targetId] || 0) + weightOf(voterId);
         if (voteCounts[targetId] > maxVotes) {
             maxVotes = voteCounts[targetId];
             mostVotedTargetId = targetId;
@@ -406,6 +413,7 @@ function processFinalResults(room) {
     const voteDetails = Object.entries(room.votes).map(([voterId, targetId]) => ({
         voter: nameOf(voterId),
         target: nameOf(targetId),
+        weight: weightOf(voterId),
     }));
 
     io.to(room.id).emit('gameResults', {
