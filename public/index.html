@@ -113,7 +113,8 @@ button{font-family:inherit}
   padding:9px 0;border-bottom:1px solid var(--border);
 }
 .about-role:last-child{border-bottom:none}
-.about-role img{width:28px;height:28px;flex-shrink:0;margin-top:2px}
+.about-role img{width:42px;height:42px;flex-shrink:0;margin-top:2px;
+  border-radius:7px;object-fit:cover;background:var(--surface-2)}
 .about-role .rname{font-weight:600;font-size:.9rem;display:flex;align-items:center;gap:6px}
 .about-role .rdesc{font-size:.8rem;color:var(--faint);line-height:1.55}
 
@@ -145,7 +146,8 @@ button{font-family:inherit}
   padding:8px 0;border-bottom:1px solid var(--border);
 }
 .role-row:last-child{border-bottom:none}
-.role-row img{width:30px;height:30px;flex-shrink:0}
+.role-row img{width:42px;height:42px;flex-shrink:0;
+  border-radius:7px;object-fit:cover;background:var(--surface-2)}
 .role-row .meta{flex:1;min-width:0}
 .role-row .rname{font-weight:600;font-size:.9rem;display:flex;align-items:center;gap:6px}
 .team-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;display:inline-block}
@@ -217,7 +219,7 @@ button{font-family:inherit}
   display:flex;align-items:center;justify-content:center;
   background:var(--surface-2);
 }
-.role-icon{width:56%;height:56%;object-fit:contain}
+.role-icon{width:100%;height:100%;object-fit:cover;display:block}
 .my-role-badge{
   position:absolute;bottom:0;width:100%;
   background:var(--surface);border-top:1px solid var(--border);
@@ -341,6 +343,22 @@ button{font-family:inherit}
   font-size:.86rem;padding:9px;border-radius:8px;
   background:var(--surface-2);margin-bottom:14px;
 }
+.vote-log{
+  text-align:left;border:1px solid var(--border);border-radius:8px;
+  padding:10px 12px;margin-bottom:14px;
+}
+.vote-log-head{font-size:.72rem;color:var(--faint);font-weight:600;margin-bottom:6px}
+.vote-row{
+  display:flex;align-items:center;gap:8px;
+  font-size:.86rem;padding:3px 0;color:var(--dim);
+}
+.vote-row .arrow{color:var(--faint)}
+.vote-row.is-hit{color:var(--text);font-weight:600}
+.vote-row.is-hit .arrow{color:var(--wolf)}
+
+.chip.is-offline{opacity:.55}
+.chip.is-offline .tag{color:var(--wolf)}
+
 .result-actions{display:flex;flex-direction:column;gap:8px}
 .result-waiting{
   font-size:.86rem;color:var(--dim);padding:12px;

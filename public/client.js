@@ -44,7 +44,7 @@ const chatSend = document.getElementById('chat-send');
 // 役職データの読み込み
 // ----------------------------------------------------------
 
-const HIDDEN_CARD = { name: '非公開', team: null, image: 'backcard.svg' };
+const HIDDEN_CARD = { name: '非公開', team: null, image: 'backcard.webp' };
 
 function roleOf(name) {
     return ROLES[name] || HIDDEN_CARD;
@@ -188,8 +188,8 @@ socket.on('roomJoined', (data) => {
 copyLinkButton.addEventListener('click', () => {
     const url = `${location.origin}${location.pathname}?room=${currentRoomId}`;
     navigator.clipboard.writeText(url).then(() => {
-        copyLinkButton.textContent = '✅ コピーしました';
-        setTimeout(() => { copyLinkButton.textContent = '🔗 招待リンクをコピー'; }, 1600);
+        copyLinkButton.textContent = '✓ コピーしました';
+        setTimeout(() => { copyLinkButton.textContent = '招待リンクをコピー'; }, 1600);
     }).catch(() => {
         // クリップボードが使えない環境では、手で選べるように出す
         prompt('このリンクをコピーして共有してください', url);
@@ -212,10 +212,12 @@ socket.on('lobbyUpdate', (data) => {
         const chip = document.createElement('div');
         chip.className = 'chip'
             + (p.isHost ? ' is-host' : '')
-            + (p.id === socket.id ? ' is-me' : '');
+            + (p.id === socket.id ? ' is-me' : '')
+            + (p.disconnected ? ' is-offline' : '');
         chip.innerHTML = `${p.name}`
             + (p.isHost ? `<span class="tag">HOST</span>` : '')
-            + (p.id === socket.id ? `<span class="tag">YOU</span>` : '');
+            + (p.id === socket.id ? `<span class="tag">YOU</span>` : '')
+            + (p.disconnected ? `<span class="tag">切断中</span>` : '');
         lobbyPlayerList.appendChild(chip);
     });
 
@@ -310,11 +312,13 @@ socket.on('gameStarted', (data) => {
     clearAbilityUI();
 
     myRole = data.yourRole || null;
-    abilityUsed = false;
-    deadIds = new Set();
+    // 途中で復帰した場合は、暗殺状況と能力の使用済みをサーバーから受け取って復元する
+    abilityUsed = !!data.abilityUsed;
+    deadIds = new Set(data.deadIds || []);
 
     clearChat();
     appendChatSystem(`ゲーム開始。あなたは「${myRole}」です`);
+    if (deadIds.size > 0) appendChatSystem('（途中から復帰しました）');
 
     const playerRolesDiv = document.getElementById('player-roles');
     playerRolesDiv.innerHTML = '';
@@ -327,6 +331,9 @@ socket.on('gameStarted', (data) => {
 
         const cardDiv = document.createElement('div');
         cardDiv.id = `player-card-${p.id || p.name}`;
+        // 復帰すると通信IDが変わるため、クリック時はこの属性を読み直す。
+        // 生成時のIDを閉じ込めてしまうと、復帰した人に投票できなくなる。
+        cardDiv.dataset.playerId = p.id || p.name;
         cardDiv.className = `player-card ${isMe ? teamClass(shownRole) : 'border-gray'}`;
         cardDiv.innerHTML = `
             <div class="player-name">${p.name}${isMe ? ' (YOU)' : (p.type === 'computer' ? ' (NPC)' : '')}</div>
@@ -337,6 +344,13 @@ socket.on('gameStarted', (data) => {
         `;
         playerRolesDiv.appendChild(cardDiv);
     });
+
+    // 復帰時に、既に暗殺されている人の見た目を戻す
+    deadIds.forEach(id => {
+        const card = document.getElementById(`player-card-${id}`);
+        if (card) card.classList.add('is-dead');
+    });
+    if (deadIds.has(socket.id)) setChatEnabled(false);
 
     // 2. 中央の余りカード枚数（中身は占い師だけが見られる）
     document.getElementById('center-count').textContent = `${data.centerCount}枚`;
@@ -375,6 +389,9 @@ function clearAbilityUI() {
 }
 
 function setupAbilityUI(players) {
+    if (abilityUsed) return;     // 復帰時など、既に使い終わっている場合
+    if (deadIds.has(socket.id)) return;
+
     const role = roleOf(myRole);
     if (!role.ability) return;   // 人狼・白狼・狂人・村人は能力なし
 
@@ -398,7 +415,7 @@ function setupAbilityUI(players) {
         btn.onclick = () => {
             if (abilityUsed) return;
             abilityUsed = true;
-            socket.emit(eventName, { targetType: 'player', targetId: targetKey });
+            socket.emit(eventName, { targetType: 'player', targetId: card.dataset.playerId });
             clearAbilityUI();
         };
         card.appendChild(btn);
@@ -408,7 +425,7 @@ function setupAbilityUI(players) {
     if (role.ability === 'fortune') {
         const centerArea = document.createElement('div');
         centerArea.id = 'ability-center-ui';
-        centerArea.innerHTML = `<button>🔮 中央のカードをすべて見る</button>`;
+        centerArea.innerHTML = `<button>中央のカードをすべて見る</button>`;
         centerArea.onclick = () => {
             if (abilityUsed) return;
             abilityUsed = true;
@@ -510,11 +527,11 @@ socket.on('fortuneResult', (res) => {
     }
     if (res.targetType === 'center') {
         const roles = res.role ? res.role.split(' / ') : [];
-        let html = `<div style="color:var(--purple);font-weight:800;margin-bottom:8px;font-size:.82rem">🔮 中央のカード</div>`
+        let html = `<div style="color:var(--purple);font-weight:800;margin-bottom:8px;font-size:.82rem">中央のカード</div>`
             + `<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center">`;
         roles.forEach(name => {
             html += `<div style="width:56px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface-2)">`
-                + `<img src="images/${roleOf(name).image}" style="width:100%;height:48px;object-fit:contain" onerror="this.style.display='none'">`
+                + `<img src="images/${roleOf(name).image}" style="width:100%;height:56px;object-fit:cover;display:block" onerror="this.style.display='none'">`
                 + `<div style="font-size:.62rem;padding:2px;background:rgba(0,0,0,.6);text-align:center">${name}</div></div>`;
         });
         html += `</div>`;
@@ -542,7 +559,7 @@ socket.on('followerResult', (res) => {
         myCard.className = `player-card ${teamClass(res.role)}`;
     }
 
-    showNotice(`🎭 ${res.targetName} は「${res.role}」でした。あなたも ${res.role} になりました。`, 'notice-teal');
+    showNotice(`${res.targetName} は「${res.role}」でした。あなたも ${res.role} になりました。`, 'notice-teal');
 });
 
 // 暗殺（全員に公開される）
@@ -560,14 +577,14 @@ socket.on('playerAssassinated', (data) => {
         if (b.closest('.player-card') === card) b.remove();
     });
 
-    appendChatSystem(`🗡 ${data.targetName} が暗殺されました（発言・投票不可）`);
+    appendChatSystem(`${data.targetName} が暗殺されました（発言・投票不可）`);
 
     if (data.targetId === socket.id) {
         document.querySelectorAll('.vote-button').forEach(b => b.remove());
         setChatEnabled(false);   // 口封じ：本人は以降しゃべれない
-        showNotice('🗡 あなたは暗殺されました。以降は発言も投票もできません。', 'notice-wolf');
+        showNotice('あなたは暗殺されました。以降は発言も投票もできません。', 'notice-wolf');
     } else {
-        showNotice(`🗡 ${data.targetName} が暗殺されました`, 'notice-wolf');
+        showNotice(`${data.targetName} が暗殺されました`, 'notice-wolf');
     }
 });
 
@@ -613,7 +630,7 @@ socket.on('startVoting', (data) => {
             btn.disabled = true;
         } else {
             btn.onclick = () => {
-                socket.emit('submitVote', { targetId });
+                socket.emit('submitVote', { targetId: cardDiv.dataset.playerId });
                 document.querySelectorAll('.vote-button').forEach(b => b.remove());
                 const mark = document.createElement('div');
                 mark.className = 'voted-mark';
@@ -641,6 +658,16 @@ socket.on('gameResults', (data) => {
 
     const assassinatedNames = data.finalPlayers.filter(p => p.isAssassinated).map(p => p.name);
 
+    // 誰が誰に入れたか。処刑された人への票は色を変えて分かりやすくする
+    const escapeHtml = (s) => String(s).replace(/[&<>"']/g,
+        c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const voteRows = (data.voteDetails || []).map(v => {
+        const hit = v.target === data.executedPlayer;
+        return `<div class="vote-row${hit ? ' is-hit' : ''}">`
+            + `<span>${escapeHtml(v.voter)}</span><span class="arrow">→</span>`
+            + `<span>${escapeHtml(v.target)}</span></div>`;
+    }).join('');
+
     // 投票ボタンが残っていると結果画面に紛れるので片付ける
     document.querySelectorAll('.vote-button').forEach(b => b.remove());
 
@@ -654,10 +681,10 @@ socket.on('gameResults', (data) => {
             let fate = '';
             if (p.isExecuted) {
                 fate = `<div style="position:absolute;top:0;width:100%;background:rgba(255,85,102,.92);
-                        color:#fff;font-size:.66rem;text-align:center;font-weight:800;padding:2px 0">⚖️ 処刑</div>`;
+                        color:#fff;font-size:.66rem;text-align:center;font-weight:800;padding:2px 0">処刑</div>`;
             } else if (p.isAssassinated) {
                 fate = `<div style="position:absolute;top:0;width:100%;background:rgba(102,115,138,.92);
-                        color:#fff;font-size:.66rem;text-align:center;font-weight:800;padding:2px 0">🗡 暗殺</div>`;
+                        color:#fff;font-size:.66rem;text-align:center;font-weight:800;padding:2px 0">暗殺</div>`;
             }
             imgCont.className = `role-image-container ${bgClass(p.role)}`;
             imgCont.innerHTML = `
@@ -681,6 +708,7 @@ socket.on('gameResults', (data) => {
                 処刑：<b>${data.executedPlayer || 'なし'}</b>
                 ${assassinatedNames.length ? `<br>暗殺：<b>${assassinatedNames.join('、')}</b>` : ''}
             </div>
+            ${voteRows ? `<div class="vote-log"><div class="vote-log-head">投票</div>${voteRows}</div>` : ''}
             <div class="result-actions">
                 ${isHost
                     ? `<button class="btn" id="result-again">同じ構成でもう一度</button>`
@@ -703,6 +731,8 @@ socket.on('gameResults', (data) => {
     document.getElementById('result-lobby').onclick = returnToLobby;
 
     document.querySelector('.phase-header h2').textContent = '結果';
+    // 「投票受付中...」が結果画面に残ると、まだ集計中に見えてしまう
+    discussionEndButton.style.display = 'none';
     appendChatSystem(
         `${data.winner && data.winner !== 'なし' ? data.winner + 'の勝利' : 'ゲーム不成立'}`
         + `（処刑：${data.executedPlayer || 'なし'}）`
@@ -724,7 +754,27 @@ function returnToLobby() {
     socket.emit('requestLobbyUpdate');   // 最新の人数・構成をもらう
 }
 
-// プレイ中に誰かが落ちた場合。再読込せずに待合室へ戻す
+// 誰かの回線が切れた。すぐには中断せず、戻ってくるのを待つ
+socket.on('playerDisconnected', (d) => {
+    showNotice(`${d.name} の接続が切れました。${d.seconds}秒待ちます`, 'notice-wolf');
+    appendChatSystem(`${d.name} の接続が切れました（${d.seconds}秒以内に戻れば続行）`);
+});
+
+socket.on('playerReconnected', (d) => {
+    // 復帰すると通信IDが変わるので、他の人の画面が持っているIDを差し替える
+    if (d.oldId && d.newId && d.oldId !== d.newId) {
+        const card = document.getElementById(`player-card-${d.oldId}`);
+        if (card) {
+            card.id = `player-card-${d.newId}`;
+            card.dataset.playerId = d.newId;
+        }
+        if (deadIds.delete(d.oldId)) deadIds.add(d.newId);
+    }
+    showNotice(`${d.name} が戻ってきました`);
+    appendChatSystem(`${d.name} が戻ってきました`);
+});
+
+// 猶予時間内に戻らなかった場合。再読込せずに待合室へ戻す
 socket.on('gameAborted', (d) => {
     showNotice(d.message, 'notice-wolf');
     returnToLobby();

@@ -76,7 +76,7 @@ function loadRoles() {
             // 白狼のように、本人のカードには別の役職名を見せたい場合に使う
             disguiseAs: cells[col('偽装先')] || null,
             defaultCount: Number.isFinite(count) ? Math.max(0, Math.trunc(count)) : 0,
-            image: cells[col('画像')] || 'backcard.png',
+            image: cells[col('画像')] || 'backcard.webp',
             description: cells[col('説明')] || '',
         };
         order.push(name);

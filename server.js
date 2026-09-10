@@ -28,6 +28,10 @@ const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const CODE_LENGTH = 4;
 const MAX_PLAYERS = 12;
 
+// 回線が切れてから、ゲームを中断するまでの猶予。
+// スマホの画面が消えただけで全員のゲームが壊れるのを防ぐ。
+const RECONNECT_GRACE_MS = 45000;
+
 // 役職の定義と初期枚数は roles.csv が持っている
 const DEFAULT_ROLE_CONFIG = defaultRoleConfig();
 
@@ -62,6 +66,7 @@ function createRoom() {
         deadIds: new Set(),        // 暗殺された人。発言・投票ができず、処刑先にも選べない
         usedAbilities: new Set(),  // 能力を使い終わった socketId（各能力は1回だけ）
         votingStarted: false,      // 投票フェーズに入ったか（能力は議論中しか使えない）
+        disconnected: new Map(),   // 名前 -> { oldId, timer }。戻ってくるのを待っている席
         createdAt: Date.now(),
     };
     rooms.set(room.id, room);
@@ -82,6 +87,7 @@ function lobbyPayload(room) {
         roomId: room.id,
         players: Object.values(room.players).map(p => ({
             name: p.name, id: p.id, isHost: p.isHost,
+            disconnected: !!p.disconnected,
         })),
         isGameStarted: room.isGameStarted,
         roleConfig: room.roleConfig,
@@ -162,6 +168,112 @@ function enterRoom(socket, room, playerName) {
     return true;
 }
 
+/** 席を片付ける。空室なら部屋ごと破棄し、ホストが抜けていたら引き継ぐ */
+function releaseSeat(room, socketId) {
+    const seat = room.players[socketId];
+    if (!seat) return;
+
+    delete room.players[socketId];
+    delete room.votes[socketId];
+    room.deadIds.delete(socketId);
+    room.usedAbilities.delete(socketId);
+
+    if (playerCount(room) === 0) {
+        // 待っている復帰タイマーが残っていると部屋が消えないので止める
+        for (const { timer } of room.disconnected.values()) clearTimeout(timer);
+        room.disconnected.clear();
+        rooms.delete(room.id);
+        console.log(`🏚 ルーム破棄: ${room.id}（残り ${rooms.size} 室）`);
+        return;
+    }
+
+    if (seat.isHost) {
+        const nextId = Object.keys(room.players)[0];
+        room.players[nextId].isHost = true;
+        console.log(`👑 ホスト引き継ぎ: ${room.players[nextId].name}`);
+    }
+
+    broadcastLobby(room);
+}
+
+/** 猶予時間内に戻ってこなかったので、ゲームを中断して席を片付ける */
+function abortForMissingPlayer(room, name) {
+    const pending = room.disconnected.get(name);
+    if (!pending) return;
+    room.disconnected.delete(name);
+
+    console.log(`⌛ ${name} が戻らず中断（${room.id}）`);
+
+    room.isGameStarted = false;
+    room.gameSetup = null;
+    room.votes = {};
+    room.deadIds = new Set();
+    room.usedAbilities = new Set();
+    room.votingStarted = false;
+
+    io.to(room.id).emit('gameAborted', {
+        message: `${name}さんが戻ってこなかったため、ゲームを中断しました。`,
+    });
+
+    releaseSeat(room, pending.oldId);
+}
+
+/**
+ * 切断していた人を元の席に戻す。
+ * ゲームの状態は socket.id をキーに持っているため、新しいIDへ全部付け替える。
+ */
+function reconnectPlayer(socket, room, name, pending) {
+    clearTimeout(pending.timer);
+    room.disconnected.delete(name);
+
+    const oldId = pending.oldId;
+    const seat = room.players[oldId];
+    if (!seat) {
+        // 席が既に消えていたら、通常の入室として扱う
+        return enterRoom(socket, room, name);
+    }
+
+    delete room.players[oldId];
+    seat.id = socket.id;
+    seat.disconnected = false;
+    room.players[socket.id] = seat;
+
+    if (room.gameSetup) {
+        const me = room.gameSetup.players.find(p => p.id === oldId);
+        if (me) me.id = socket.id;
+    }
+
+    // 自分が入れた票
+    if (room.votes[oldId] !== undefined) {
+        room.votes[socket.id] = room.votes[oldId];
+        delete room.votes[oldId];
+    }
+    // 自分に入っていた票
+    for (const [voterId, targetId] of Object.entries(room.votes)) {
+        if (targetId === oldId) room.votes[voterId] = socket.id;
+    }
+    if (room.deadIds.delete(oldId)) room.deadIds.add(socket.id);
+    if (room.usedAbilities.delete(oldId)) room.usedAbilities.add(socket.id);
+
+    socket.data.roomId = room.id;
+    socket.data.name = name;
+    socket.join(room.id);
+
+    console.log(`🔄 復帰: ${name}（${room.id}）`);
+    socket.emit('roomJoined', { roomId: room.id, yourId: socket.id });
+    // 他の人の画面がIDを差し替えられるよう、新旧のIDも渡す
+    io.to(room.id).emit('playerReconnected', { name, oldId, newId: socket.id });
+
+    // ゲーム中なら、その人の画面だけ状態を作り直す
+    if (room.isGameStarted && room.gameSetup) {
+        emitGameStarted(room, socket.id);
+        if (room.votingStarted) socket.emit('startVoting', votingPayload(room));
+    }
+
+    broadcastLobby(room);
+    return true;
+}
+
 // ==========================================================
 // ゲーム進行
 // ==========================================================
@@ -225,11 +337,12 @@ function startNewGame(room, useCpu) {
  * 以前は全員に全員の役職を送って画面側で隠していただけだったため、
  * 開発者ツールを開けば全部見えてしまっていた。他人の役職は送らない。
  */
-function emitGameStarted(room) {
+function emitGameStarted(room, onlyId = null) {
     const roster = room.gameSetup.players;
 
     for (const me of roster) {
         if (me.type !== 'human') continue;
+        if (onlyId && me.id !== onlyId) continue;   // 復帰した人にだけ送り直す場合
 
         io.to(me.id).emit('gameStarted', {
             players: roster.map(other => ({
@@ -242,8 +355,39 @@ function emitGameStarted(room) {
             yourRole: displayRoleFor(me),
             centerCount: room.gameSetup.centerCards.length,
             roleConfig: room.roleConfig,
+            // 途中で復帰した人が、暗殺状況や能力の使用済み判定を復元できるようにする
+            deadIds: [...room.deadIds],
+            abilityUsed: room.usedAbilities.has(me.id),
         });
     }
+}
+
+/** 投票フェーズの対象一覧（復帰時にも同じものを送る） */
+function votingPayload(room) {
+    const humanPlayers = Object.values(room.players).map(p => ({ name: p.name, id: p.id }));
+    const comPlayers = room.gameSetup.players
+        .filter(p => p.type === 'computer')
+        .map(p => ({ name: p.name, id: p.name }));
+    return { players: [...humanPlayers, ...comPlayers] };
+}
+
+/**
+ * CPUの投票。議論に参加できない相手なので、読み合いはせず無作為に入れる。
+ * 投票しないままだと「黙っているCPUに全員で入れて終わり」になり、
+ * CPUを入れた試合が毎回同じ展開になってしまう。
+ */
+function castCpuVotes(room) {
+    if (!room.gameSetup) return;
+    room.gameSetup.players
+        .filter(p => p.type === 'computer')
+        .forEach(cpu => {
+            const key = cpu.id || cpu.name;
+            if (room.votes[key] !== undefined) return;
+            const targets = validTargetsFor(room, key);
+            if (!targets.length) return;
+            const pick = targets[Math.floor(Math.random() * targets.length)];
+            room.votes[key] = pick.id || pick.name;
+        });
 }
 
 function processFinalResults(room) {
@@ -275,10 +419,19 @@ function processFinalResults(room) {
 
     console.log(`[勝敗] ${room.id}: ${winner.team} / ${winner.message}`);
 
+    // 誰が誰に入れたかを名前で渡す（IDのままだと画面側で照合できない）
+    const nameOf = (key) =>
+        finalPlayers.find(p => (p.id || p.name) === key)?.name || '不明';
+    const voteDetails = Object.entries(room.votes).map(([voterId, targetId]) => ({
+        voter: nameOf(voterId),
+        target: nameOf(targetId),
+    }));
+
     io.to(room.id).emit('gameResults', {
         executedPlayer: executedPlayer ? executedPlayer.name : 'なし',
         winner: winner.team,
         message: winner.message,
+        voteDetails,
         finalPlayers: finalPlayers.map(p => ({
             name: p.name,
             id: p.id,
@@ -344,6 +497,11 @@ io.on('connection', (socket) => {
             return socket.emit('error_message',
                 `合言葉「${code}」の部屋が見つかりません。入力を確認してください。`);
         }
+
+        // 切断待ちの席が残っていれば、そこへ戻す（ゲーム中でも入れる）
+        const pending = room.disconnected.get(name);
+        if (pending) return reconnectPlayer(socket, room, name, pending);
+
         enterRoom(socket, room, name);
     });
 
@@ -467,13 +625,10 @@ io.on('connection', (socket) => {
         const room = getRoom(socket);
         if (!room || !room.isGameStarted || !room.players[socket.id]?.isHost) return;
 
-        const humanPlayers = Object.values(room.players).map(p => ({ name: p.name, id: p.id }));
-        const comPlayers = room.gameSetup.players
-            .filter(p => p.type === 'computer')
-            .map(p => ({ name: p.name, id: p.name }));
-
         room.votingStarted = true;
-        io.to(room.id).emit('startVoting', { players: [...humanPlayers, ...comPlayers] });
+        io.to(room.id).emit('startVoting', votingPayload(room));
+
+        castCpuVotes(room);
 
         // 暗殺で投票できる人が誰もいなくなっている場合、
         // 誰の投票も届かないため、ここで判定を起動しないと進行不能になる
@@ -530,38 +685,26 @@ io.on('connection', (socket) => {
         const leaver = room.players[socket.id];
         if (!leaver) return;
 
-        console.log(`🔌 切断: ${leaver.name}（${room.id}）`);
-        delete room.players[socket.id];
-        delete room.votes[socket.id];
-
-        // プレイ中に抜けられると進行不能になるので、全員ロビーへ戻す
+        // ゲーム中は即中断せず、戻ってくるのを待つ。
+        // スマホの画面が消えただけで全員のゲームが壊れるのを防ぐため。
         if (room.isGameStarted) {
-            room.isGameStarted = false;
-            room.gameSetup = null;
-            room.votes = {};
-            room.deadIds = new Set();
-            room.usedAbilities = new Set();
-            room.votingStarted = false;
-            io.to(room.id).emit('gameAborted', {
-                message: `${leaver.name}さんが退出したため、ロビーに戻ります。`,
+            leaver.disconnected = true;
+
+            const timer = setTimeout(() => abortForMissingPlayer(room, leaver.name), RECONNECT_GRACE_MS);
+            room.disconnected.set(leaver.name, { oldId: socket.id, timer });
+
+            console.log(`⏳ 切断: ${leaver.name}（${room.id}）— ${RECONNECT_GRACE_MS / 1000}秒待機`);
+            io.to(room.id).emit('playerDisconnected', {
+                name: leaver.name,
+                seconds: Math.round(RECONNECT_GRACE_MS / 1000),
             });
+            broadcastLobby(room);
+            return;   // 席は残しておく
         }
 
-        // 誰もいなくなった部屋は破棄する
-        if (playerCount(room) === 0) {
-            rooms.delete(room.id);
-            console.log(`🏚 ルーム破棄: ${room.id}（残り ${rooms.size} 室）`);
-            return;
-        }
-
-        // ホストが抜けたら残っている人に引き継ぐ
-        if (leaver.isHost) {
-            const nextId = Object.keys(room.players)[0];
-            room.players[nextId].isHost = true;
-            console.log(`👑 ホスト引き継ぎ: ${room.players[nextId].name}`);
-        }
-
-        broadcastLobby(room);
+        // 待合室にいるだけなら、これまでどおり即退出
+        console.log(`🔌 退出: ${leaver.name}（${room.id}）`);
+        releaseSeat(room, socket.id);
     });
 });
 
