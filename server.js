@@ -304,6 +304,19 @@ function startNewGame(room, useCpu) {
         return;
     }
 
+    // 村人陣営のカードが1枚も無いと、全員が人狼陣営になり互いを吊るしかなくなる。
+    // 「狼が0枚」の裏返しなので、同じく開始前に弾く。
+    const villagerCards = Object.entries(room.roleConfig)
+        .filter(([role]) => ROLES[role]?.team === '村人陣営')
+        .reduce((sum, [, n]) => sum + n, 0);
+
+    if (villagerCards === 0) {
+        io.to(room.id).emit('error_message',
+            '村人陣営のカードが1枚もありません。全員が人狼陣営になってしまい、' +
+            '互いを処刑するしかなくなります。村人・占い師・付き人・啓蒙家・告発者のいずれかを入れてください。');
+        return;
+    }
+
     const gameSetup = assignRoles(currentPlayers, generateRolePool(room.roleConfig));
 
     // 処刑対象になる狼（人狼・白狼）が1枚も無い構成はゲームが成立しないため即終了。

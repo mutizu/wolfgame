@@ -252,8 +252,18 @@ function determineWinner(players, executedPlayer, assassinatedPlayers = []) {
         };
     }
 
+    // 村人陣営のプレイヤーが1人もいない構成では、村人チームの勝ちはあり得ない。
+    // 狼しかいない卓では互いを吊るしかなく、それを「村人の勝利」と出すのは誤り。
+    const hasVillager = players.some(p => ROLES[p.role]?.team === '村人陣営');
+
     const deadWolfByAssassin = assassinatedPlayers.find(isWolf);
     if (deadWolfByAssassin) {
+        if (!hasVillager) {
+            return {
+                team: '人狼チーム',
+                message: `村人陣営のプレイヤーが1人もいませんでした。${deadWolfByAssassin.name}が退場しましたが、勝つ村人がいないため人狼チームの勝利です。`,
+            };
+        }
         return {
             team: '村人チーム',
             message: `暗殺された${deadWolfByAssassin.name}は${deadWolfByAssassin.role}でした。村人チームの勝利です！`,
@@ -261,6 +271,12 @@ function determineWinner(players, executedPlayer, assassinatedPlayers = []) {
     }
 
     if (isWolf(executedPlayer)) {
+        if (!hasVillager) {
+            return {
+                team: '人狼チーム',
+                message: `村人陣営のプレイヤーが1人もいませんでした。${executedPlayer.name}を処刑しましたが、勝つ村人がいないため人狼チームの勝利です。`,
+            };
+        }
         return {
             team: '村人チーム',
             message: `処刑された${executedPlayer.name}は${executedPlayer.role}でした。村人チームの勝利です！`,
