@@ -397,45 +397,37 @@ socket.on('gameStarted', (data) => {
  * 人狼から見れば「仲間」、狂信者から見れば「誰を守るか」なので文言を分ける。
  * 名前の一覧には自分が含まれていない（サーバー側で除いている）。
  */
-function showKnownWolves(names, iAmWolf) {
-    if (!Array.isArray(names)) return;
-    const list = names.join('、');
+function showKnownWolves(wolves, iAmWolf) {
+    if (!Array.isArray(wolves)) return;
+    const list = wolves.map(w => w.name).join('、');
 
     if (iAmWolf) {
-        if (names.length === 0) {
+        if (wolves.length === 0) {
             showNotice('あなた以外に人狼はいません。', 'notice-wolf');
             appendChatSystem('（あなただけに表示）あなた以外に人狼はいません');
             return;
         }
         showNotice(`仲間の人狼は ${list} です。`, 'notice-wolf');
         appendChatSystem(`（あなただけに表示）仲間の人狼：${list}`);
-        markWolfCards(names, '仲間');
+        revealWolfCards(wolves, '仲間');
         return;
     }
 
-    if (names.length === 0) return;
+    if (wolves.length === 0) return;
     showNotice(`人狼は ${list} です。あなたが狂信者であることは、人狼側には分かりません。`, 'notice-wolf');
     appendChatSystem(`（あなただけに表示）人狼：${list}`);
-    markWolfCards(names, '人狼');
+    revealWolfCards(wolves, '人狼');
 }
 
 /**
- * 狼のカードに印を付ける。チャットの1行は流れて消えてしまうため、
- * 盤面にも残しておく。役職名は出さない——白狼を「人狼」と書くと嘘になるし、
- * 一覧で伝えている情報（誰が狼か）はこの印と同じ粒度だから。
+ * 狼のカードを表にする。伏せたままだと誰が仲間か盤面で分からず、
+ * チャットの1行は流れて消えてしまう。
+ * 白狼も本当の役職のまま出す——本人は村人だと思っているが、
+ * 他の狼からは白狼だと分かるのが正しい。
  */
-function markWolfCards(names, label) {
-    names.forEach(name => {
-        const p = roster.find(x => x.name === name);
-        const card = document.getElementById(`player-card-${p ? (p.id || p.name) : name}`);
-        if (!card) return;
-        const cont = card.querySelector('.role-image-container');
-        if (!cont || cont.querySelector('.wolf-tag')) return;
-        const tag = document.createElement('div');
-        tag.className = 'wolf-tag';
-        tag.textContent = label;
-        cont.appendChild(tag);
-        card.classList.add('is-wolf-known');
+function revealWolfCards(wolves, label) {
+    wolves.forEach(w => {
+        revealRoleOnCard(w.id, w.role, label, 'rgba(248,113,113,.95)');
     });
 }
 
