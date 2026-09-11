@@ -234,54 +234,72 @@ button{font-family:inherit}
 .border-gray{border-color:var(--border)}
 .bg-werewolf,.bg-villager,.bg-gray,.bg-solo{background:var(--surface-2)}
 
-/* ---------- 暗殺の演出 ---------- */
-#kill-cutin{position:fixed;inset:0;z-index:10050;pointer-events:none;overflow:hidden}
+/* ---------- 斬撃のカットイン（暗殺・告発で共通） ---------- */
+/* 色（--cut-c）と文字と立ち絵だけが違い、動きは同じ。
+   告発は判明した陣営の色になるので、色そのものが結果を伝える */
+.slash-cutin{position:fixed;inset:0;z-index:10050;pointer-events:none;overflow:hidden}
 
-.kill-dim{
+.cut-dim{
   position:absolute;inset:0;background:rgba(6,6,8,.6);
-  opacity:0;animation:kill-fade 1.75s ease forwards;
+  opacity:0;animation:cut-fade 1.75s ease forwards;
 }
-@keyframes kill-fade{
-  0%{opacity:0} 12%{opacity:1} 72%{opacity:1} 100%{opacity:0}
-}
+@keyframes cut-fade{0%{opacity:0}12%{opacity:1}72%{opacity:1}100%{opacity:0}}
 
-/* 赤い帯。左右から走らせて中央で止め、最後に抜けていく */
-.kill-slash{
+.cut-slash{
   position:absolute;left:-40%;width:180%;
   transform:skewY(-7deg) translateX(-135%);
-  animation:kill-slash-l 1.75s cubic-bezier(.08,.85,.18,1) forwards;
+  animation:cut-slash-l 1.75s cubic-bezier(.08,.85,.18,1) forwards;
 }
-.kill-slash.from-right{
+.cut-slash.from-right{
   transform:skewY(-7deg) translateX(135%);
-  animation-name:kill-slash-r;
+  animation-name:cut-slash-r;
 }
-@keyframes kill-slash-l{
+@keyframes cut-slash-l{
   0%  {transform:skewY(-7deg) translateX(-135%);opacity:1}
   24% {transform:skewY(-7deg) translateX(0);opacity:1}
   72% {transform:skewY(-7deg) translateX(0);opacity:1}
   100%{transform:skewY(-7deg) translateX(70%);opacity:0}
 }
-@keyframes kill-slash-r{
+@keyframes cut-slash-r{
   0%  {transform:skewY(-7deg) translateX(135%);opacity:1}
   24% {transform:skewY(-7deg) translateX(0);opacity:1}
   72% {transform:skewY(-7deg) translateX(0);opacity:1}
   100%{transform:skewY(-7deg) translateX(-70%);opacity:0}
 }
 
-.kill-text{
+/* 立ち絵。右下から出して、文字とぶつからないようにする */
+.cut-figure{
+  position:absolute;right:-4%;bottom:0;
+  height:62%;max-height:340px;width:auto;
+  filter:drop-shadow(0 0 10px rgba(0,0,0,.55));
+  transform:translateX(28%) scale(.92);opacity:0;
+  animation:cut-figure 1.75s cubic-bezier(.12,.9,.2,1) forwards;
+}
+@keyframes cut-figure{
+  0%  {opacity:0;transform:translateX(28%) scale(.92)}
+  26% {opacity:1;transform:translateX(0)   scale(1)}
+  74% {opacity:1;transform:translateX(0)   scale(1)}
+  100%{opacity:0;transform:translateX(10%) scale(1.02)}
+}
+
+.cut-text{
   position:absolute;left:0;right:0;top:50%;
   text-align:center;transform:translateY(-50%) scale(.7);opacity:0;
-  animation:kill-text 1.75s cubic-bezier(.14,1.4,.3,1) forwards;
+  animation:cut-text 1.75s cubic-bezier(.14,1.4,.3,1) forwards;
 }
-.kill-text .kill-word{
+.cut-text .cut-word{
   font-size:3rem;font-weight:900;letter-spacing:.2em;color:#fff;line-height:1.1;
-  text-shadow:0 0 4px #000,0 0 22px rgba(220,53,69,.95),0 4px 0 rgba(0,0,0,.5);
+  text-shadow:0 0 4px #000,0 0 22px var(--cut-c),0 4px 0 rgba(0,0,0,.5);
 }
-.kill-text .kill-target{
+.cut-text .cut-sub{
   margin-top:6px;font-size:1.05rem;font-weight:800;letter-spacing:.08em;color:#fff;
-  text-shadow:0 0 3px #000,0 0 12px rgba(220,53,69,.9);
+  text-shadow:0 0 3px #000,0 0 12px rgba(0,0,0,.9);
 }
-@keyframes kill-text{
+.cut-text .cut-lead{
+  margin-top:4px;font-size:1.3rem;font-weight:900;letter-spacing:.1em;color:#fff;
+  text-shadow:0 0 4px #000,0 2px 0 rgba(0,0,0,.6);
+}
+@keyframes cut-text{
   0%  {opacity:0;transform:translateY(-50%) scale(.7)}
   26% {opacity:1;transform:translateY(-50%) scale(1.06)}
   34% {opacity:1;transform:translateY(-50%) scale(1)}
@@ -314,13 +332,14 @@ button{font-family:inherit}
 }
 
 @media (prefers-reduced-motion: reduce){
-  .kill-slash{animation:kill-hold 1.5s ease forwards;transform:skewY(-7deg)}
-  .kill-text{animation:kill-hold 1.5s ease forwards;transform:translateY(-50%)}
-  .kill-dim{animation:kill-hold 1.5s ease forwards}
+  .cut-slash{animation:cut-hold 1.5s ease forwards;transform:skewY(-7deg)}
+  .cut-text{animation:cut-hold 1.5s ease forwards;transform:translateY(-50%)}
+  .cut-figure{animation:cut-hold 1.5s ease forwards;transform:none}
+  .cut-dim{animation:cut-hold 1.5s ease forwards}
   .bullet-hole{animation:none;transform:translate(-50%,-50%) scale(1) rotate(6deg)}
   .player-card.is-hit{animation:none}
 }
-@keyframes kill-hold{0%{opacity:0}18%{opacity:1}76%{opacity:1}100%{opacity:0}}
+@keyframes cut-hold{0%{opacity:0}18%{opacity:1}76%{opacity:1}100%{opacity:0}}
 
 /* 退場した人。カード全体を薄くすると弾痕まで薄くなるので、
    絵と文字だけを沈ませて、撃ち込んだ痕はくっきり残す */

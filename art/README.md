@@ -110,3 +110,20 @@ out = (out * (1 - alpha) + TARGET * alpha).astype(np.uint8)
 ```
 
 `alpha` を距離で減衰させると境界のジャギが出ない。てるてるは TARGET=(20,116,110)。
+
+## カットインの立ち絵（cutin-*.webp）
+
+背景を透明にして、演出の上に重ねる。生成→切り抜きの手順は「背景色が指定通りに
+ならないとき」と同じ塗りつぶしだが、**塗り替える代わりにアルファを0にする**。
+
+| 用途 | プロンプト | 切り抜きの許容値 |
+|---|---|---|
+| 告発者 | `(short blonde hair:1.2), (high collar black coat:1.3), long sleeves, (pale peach skin:1.4), sharp blue eyes, (pointing at viewer:1.5), (shouting:1.3), (angry determined expression:1.3), (holding documents in other hand:1.3), leaning forward, dynamic pose` | 45 |
+| 暗殺者 | `(black hood:1.2), (face mask covering mouth:1.25), (silver hair:1.2), (navy blue eyes:1.2), (high collar black coat:1.4), long sleeves, (pale peach skin:1.4), (holding dagger up:1.4), (lunging forward:1.3), sharp intense gaze, dynamic pose` | 28 |
+
+共通プロンプトは bust portrait ではなく `upper body` にし、背景に
+`(plain flat background:1.4)` を足す。切り抜くので背景は平坦なほど良い。
+
+**許容値は必ず現物で確かめること。** 告発者は白い書類と明るい髪が背景に近いので、
+60まで緩めると髪が背景ごと溶けた。暗殺者は黒服と濃紺背景が近いので逆に絞る必要があり、
+28でも50でも結果が変わらない（=きれいに分離できている）ことを確認してから決めた。

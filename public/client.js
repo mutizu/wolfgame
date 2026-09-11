@@ -620,6 +620,26 @@ socket.on('followerResult', (res) => {
 });
 
 // 暗殺（全員に公開される）
+/** 陣営ごとの色。告発では、この色そのものが結果を伝える */
+const TEAM_COLOR = {
+    '人狼陣営': '#dc3545',
+    '村人陣営': '#3b82f6',
+    '単独陣営': '#f59e0b',
+};
+
+/**
+ * 告発のカットイン。動きは暗殺と同じ斬撃で、色が判明した陣営そのもの。
+ * 人狼陣営だと暗殺と同じ赤になるので、立ち絵で見分けがつくようにしてある。
+ */
+function playAccuseEffect(targetName, team) {
+    playSlashCutin({
+        color: TEAM_COLOR[team] || '#9aa3b2',
+        word: '告発',
+        lines: [targetName, team],
+        figure: 'images/cutin-accuser.webp',
+    });
+}
+
 // 告発の結果。役職名は伏せ、陣営だけが全員に公開される
 socket.on('accuseResult', (data) => {
     const card = document.getElementById(`player-card-${data.targetId}`);
@@ -634,8 +654,7 @@ socket.on('accuseResult', (data) => {
         }
     }
     appendChatSystem(`告発：${data.targetName} は ${data.team} です`);
-    showNotice(`${data.targetName} は ${data.team} でした。`,
-        data.team === '人狼陣営' ? 'notice-wolf' : 'notice-teal');
+    playAccuseEffect(data.targetName, data.team);
 });
 
 // ----------------------------------------------------------
@@ -735,49 +754,89 @@ function slashClipPath() {
            `100% ${r(44, 68)}%, ${r(89, 97)}% 100%, ${r(4, 11)}% ${r(84, 98)}%)`;
 }
 
-/** 画面全体のカットインと、カードへの着弾 */
-function playKillEffect(card, targetName) {
+// 帯の配置。隙間を空けないとただの塗りつぶしになる。
+// 文字が乗る 50% 付近には太い帯を通して読みやすくする
+const SLASH_BANDS = [
+    { top: 18, h: 5,  shade: .45, delay: 90,  right: false },
+    { top: 29, h: 10, shade: .72, delay: 0,   right: true  },
+    { top: 44, h: 15, shade: 1,   delay: 50,  right: false },
+    { top: 65, h: 7,  shade: 1.2, delay: 130, right: true  },
+    { top: 77, h: 5,  shade: .55, delay: 30,  right: false },
+];
+
+/** 明度を変えた同系色を作る。帯ごとに濃さを散らすため */
+function shadeColor(hex, mul) {
+    const n = parseInt(hex.slice(1), 16);
+    const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+        .map(v => Math.max(0, Math.min(255, Math.round(v * mul))));
+    return `rgb(${ch.join(',')})`;
+}
+
+/**
+ * 斬撃のカットイン。暗殺と告発で共通。
+ * 色・文字・立ち絵だけ差し替えて、動きは同じにしてある。
+ * @param {object} o
+ * @param {string} o.color  基準になる色（陣営の色など）
+ * @param {string} o.word   大きく出す語
+ * @param {string[]} o.lines 語の下に出す行
+ * @param {string=} o.figure 右下に出す立ち絵の画像パス
+ */
+function playSlashCutin({ color, word, lines, figure }) {
     const cut = document.createElement('div');
-    cut.id = 'kill-cutin';
+    cut.className = 'slash-cutin';
+    cut.style.setProperty('--cut-c', color);
 
     const dim = document.createElement('div');
-    dim.className = 'kill-dim';
+    dim.className = 'cut-dim';
     cut.appendChild(dim);
 
-    // 赤い帯を左右から交互に。高さ・位置・濃さ・タイミングを散らす
-    // 隙間を空けて帯に見せる。埋めてしまうとただの赤い画面になる。
-    // 文字が乗る 50% 付近には太い帯を通して読みやすくする
-    const bands = [
-        { top: 18, h: 5,  color: '#8e0f22', delay: 90,  right: false },
-        { top: 29, h: 10, color: '#b3122a', delay: 0,   right: true  },
-        { top: 44, h: 15, color: '#dc3545', delay: 50,  right: false },
-        { top: 65, h: 7,  color: '#ff5566', delay: 130, right: true  },
-        { top: 77, h: 5,  color: '#a81428', delay: 30,  right: false },
-    ];
-    bands.forEach(b => {
+    SLASH_BANDS.forEach(b => {
         const el = document.createElement('div');
-        el.className = 'kill-slash' + (b.right ? ' from-right' : '');
+        el.className = 'cut-slash' + (b.right ? ' from-right' : '');
         el.style.top = b.top + '%';
         el.style.height = b.h + '%';
-        el.style.background = b.color;
+        el.style.background = shadeColor(color, b.shade);
         el.style.animationDelay = b.delay + 'ms';
         el.style.clipPath = slashClipPath();
         cut.appendChild(el);
     });
 
+    if (figure) {
+        const img = document.createElement('img');
+        img.className = 'cut-figure';
+        img.src = figure;
+        img.alt = '';
+        img.onerror = () => img.remove();   // 画像が無くても演出は成立させる
+        cut.appendChild(img);
+    }
+
     const text = document.createElement('div');
-    text.className = 'kill-text';
-    const word = document.createElement('div');
-    word.className = 'kill-word';
-    word.textContent = '暗殺';
-    const who = document.createElement('div');
-    who.className = 'kill-target';
-    who.textContent = targetName;          // 名前は必ず textContent で入れる
-    text.append(word, who);
+    text.className = 'cut-text';
+    const w = document.createElement('div');
+    w.className = 'cut-word';
+    w.textContent = word;
+    text.appendChild(w);
+    lines.forEach((line, i) => {
+        const el = document.createElement('div');
+        el.className = i === 0 ? 'cut-sub' : 'cut-lead';
+        el.textContent = line;              // 名前は必ず textContent で入れる
+        text.appendChild(el);
+    });
     cut.appendChild(text);
 
     document.body.appendChild(cut);
     setTimeout(() => cut.remove(), 1800);
+    return cut;
+}
+
+/** 画面全体のカットインと、カードへの着弾 */
+function playKillEffect(card, targetName) {
+    playSlashCutin({
+        color: '#dc3545',
+        word: '暗殺',
+        lines: [targetName],
+        figure: 'images/cutin-assassin.webp',
+    });
 
     const cont = card?.querySelector('.role-image-container');
     if (!cont || cont.querySelector('.bullet-hole')) return;
