@@ -235,37 +235,63 @@ button{font-family:inherit}
 .bg-werewolf,.bg-villager,.bg-gray,.bg-solo{background:var(--surface-2)}
 
 /* ---------- 暗殺の演出 ---------- */
-#kill-cutin{
-  position:fixed;inset:0;z-index:10050;pointer-events:none;
-  display:flex;align-items:center;justify-content:center;overflow:hidden;
+#kill-cutin{position:fixed;inset:0;z-index:10050;pointer-events:none;overflow:hidden}
+
+.kill-dim{
+  position:absolute;inset:0;background:rgba(6,6,8,.6);
+  opacity:0;animation:kill-fade 1.75s ease forwards;
 }
-.kill-band{
-  position:relative;width:150%;padding:16px 0;
-  background:linear-gradient(90deg,rgba(9,9,11,0),rgba(9,9,11,.96) 14%,rgba(9,9,11,.96) 86%,rgba(9,9,11,0));
-  transform:skewY(-3deg);
-  display:flex;align-items:center;justify-content:center;gap:20px;
-  animation:kill-sweep 1.5s cubic-bezier(.16,.84,.3,1) forwards;
+@keyframes kill-fade{
+  0%{opacity:0} 12%{opacity:1} 72%{opacity:1} 100%{opacity:0}
 }
-.kill-band::before,.kill-band::after{
-  content:'';position:absolute;left:0;width:100%;height:2px;background:var(--wolf);
+
+/* 赤い帯。左右から走らせて中央で止め、最後に抜けていく */
+.kill-slash{
+  position:absolute;left:-40%;width:180%;
+  transform:skewY(-7deg) translateX(-135%);
+  animation:kill-slash-l 1.75s cubic-bezier(.08,.85,.18,1) forwards;
 }
-.kill-band::before{top:0}
-.kill-band::after{bottom:0}
-.kill-word{
-  font-size:2.3rem;font-weight:900;letter-spacing:.24em;color:#fff;
-  text-shadow:0 0 16px rgba(220,53,69,.85);
+.kill-slash.from-right{
+  transform:skewY(-7deg) translateX(135%);
+  animation-name:kill-slash-r;
 }
-.kill-target{font-size:1rem;font-weight:700;color:var(--wolf);letter-spacing:.05em}
-@keyframes kill-sweep{
-  0%   {opacity:0;transform:skewY(-3deg) translateX(-22%) scaleX(.65)}
-  16%  {opacity:1;transform:skewY(-3deg) translateX(0)    scaleX(1)}
-  74%  {opacity:1;transform:skewY(-3deg) translateX(0)    scaleX(1)}
-  100% {opacity:0;transform:skewY(-3deg) translateX(16%)  scaleX(1.06)}
+@keyframes kill-slash-l{
+  0%  {transform:skewY(-7deg) translateX(-135%);opacity:1}
+  24% {transform:skewY(-7deg) translateX(0);opacity:1}
+  72% {transform:skewY(-7deg) translateX(0);opacity:1}
+  100%{transform:skewY(-7deg) translateX(70%);opacity:0}
+}
+@keyframes kill-slash-r{
+  0%  {transform:skewY(-7deg) translateX(135%);opacity:1}
+  24% {transform:skewY(-7deg) translateX(0);opacity:1}
+  72% {transform:skewY(-7deg) translateX(0);opacity:1}
+  100%{transform:skewY(-7deg) translateX(-70%);opacity:0}
+}
+
+.kill-text{
+  position:absolute;left:0;right:0;top:50%;
+  text-align:center;transform:translateY(-50%) scale(.7);opacity:0;
+  animation:kill-text 1.75s cubic-bezier(.14,1.4,.3,1) forwards;
+}
+.kill-text .kill-word{
+  font-size:3rem;font-weight:900;letter-spacing:.2em;color:#fff;line-height:1.1;
+  text-shadow:0 0 4px #000,0 0 22px rgba(220,53,69,.95),0 4px 0 rgba(0,0,0,.5);
+}
+.kill-text .kill-target{
+  margin-top:6px;font-size:1.05rem;font-weight:800;letter-spacing:.08em;color:#fff;
+  text-shadow:0 0 3px #000,0 0 12px rgba(220,53,69,.9);
+}
+@keyframes kill-text{
+  0%  {opacity:0;transform:translateY(-50%) scale(.7)}
+  26% {opacity:1;transform:translateY(-50%) scale(1.06)}
+  34% {opacity:1;transform:translateY(-50%) scale(1)}
+  74% {opacity:1;transform:translateY(-50%) scale(1)}
+  100%{opacity:0;transform:translateY(-50%) scale(1.12)}
 }
 
 /* 弾痕。カードの絵の上に撃ち込まれ、試合中は残る */
 .bullet-hole{
-  position:absolute;width:34%;max-width:46px;aspect-ratio:1;
+  position:absolute;width:var(--hole-size,58%);max-width:86px;aspect-ratio:1;
   transform:translate(-50%,-50%) scale(0);
   animation:hole-punch .26s cubic-bezier(.2,1.7,.4,1) forwards;
   pointer-events:none;z-index:3;
@@ -288,7 +314,9 @@ button{font-family:inherit}
 }
 
 @media (prefers-reduced-motion: reduce){
-  .kill-band{animation:kill-hold 1.3s ease forwards}
+  .kill-slash{animation:kill-hold 1.5s ease forwards;transform:skewY(-7deg)}
+  .kill-text{animation:kill-hold 1.5s ease forwards;transform:translateY(-50%)}
+  .kill-dim{animation:kill-hold 1.5s ease forwards}
   .bullet-hole{animation:none;transform:translate(-50%,-50%) scale(1) rotate(6deg)}
   .player-card.is-hit{animation:none}
 }

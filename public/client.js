@@ -642,32 +642,82 @@ socket.on('accuseResult', (data) => {
 // 暗殺の演出
 // ----------------------------------------------------------
 
-const BULLET_HOLE = `
-<svg viewBox="0 0 40 40" aria-hidden="true">
-  <g stroke-linecap="round" fill="none">
-    <!-- ひびは太い暗線の上に細い明線を重ねる。こうしないと暗い絵でも明るい絵でも
-         どちらかで見えなくなる -->
-    <path d="M20 20L30 8M20 20L35 22M20 20L27 34M20 20L11 32M20 20L5 26M20 20L8 11M20 20L18 4"
-          stroke="rgba(0,0,0,.6)" stroke-width="3.4"/>
-    <path d="M20 20L30 8M20 20L35 22M20 20L27 34M20 20L11 32M20 20L5 26M20 20L8 11M20 20L18 4"
-          stroke="rgba(255,255,255,.82)" stroke-width="1.3"/>
-  </g>
-  <circle cx="20" cy="20" r="8.6" fill="rgba(0,0,0,.55)"/>
-  <circle cx="20" cy="20" r="7.4" fill="#0a0a0c"/>
-  <circle cx="20" cy="20" r="7.4" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="1.5"/>
-  <circle cx="17.4" cy="17.6" r="2.2" fill="rgba(255,255,255,.16)"/>
-</svg>`;
+/**
+ * ガラスのひびを1つ生成する。放射状のひびと、それをつなぐ同心状の破片で作る。
+ * 毎回かたちが変わるので、3発並べても同じ判子に見えない。
+ *
+ * 線は「太い暗線の上に細い明線」を重ねる。単色だと、カード裏面のような
+ * 暗い絵か白狼のような明るい絵か、どちらかで完全に沈むため。
+ */
+function glassCrackSVG() {
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    const C = 50;                               // viewBox 100x100 の中心
+    const n = Math.round(rnd(12, 17));          // 放射状のひびの本数
+    const angles = [];
+    const lens = [];
+    for (let i = 0; i < n; i++) {
+        angles.push((i / n) * Math.PI * 2 + rnd(-0.16, 0.16));
+        lens.push(rnd(24, 47));
+    }
 
-// 弾痕を撃ち込む位置（カードの絵に対する割合）。毎回同じだと単調なので少し散らす
-const HOLE_SPOTS = [[38, 34], [61, 50], [46, 69]];
+    // 放射状のひび。まっすぐだと定規で引いたように見えるので、途中を折る
+    const radial = angles.map((a, i) => {
+        let d = `M${C} ${C}`;
+        for (let s = 1; s <= 3; s++) {
+            const t = lens[i] * s / 3;
+            const aa = a + rnd(-0.07, 0.07);
+            d += ` L${(C + Math.cos(aa) * t + rnd(-2, 2)).toFixed(1)} ${(C + Math.sin(aa) * t + rnd(-2, 2)).toFixed(1)}`;
+        }
+        return d;
+    });
+
+    // 同心状の破片。隣り合う放射ひびの間を弧でつなぐ。全部はつながない
+    const rings = [];
+    for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        const reach = Math.min(lens[i], lens[j]);
+        for (const frac of [0.34, 0.62, 0.86]) {
+            if (Math.random() < 0.45) continue;
+            const r = reach * frac * rnd(0.9, 1.1);
+            const x1 = C + Math.cos(angles[i]) * r, y1 = C + Math.sin(angles[i]) * r;
+            const x2 = C + Math.cos(angles[j]) * r, y2 = C + Math.sin(angles[j]) * r;
+            const mr = r * rnd(0.82, 0.96);
+            const ma = (angles[i] + angles[j]) / 2;
+            const mx = C + Math.cos(ma) * mr, my = C + Math.sin(ma) * mr;
+            rings.push(`M${x1.toFixed(1)} ${y1.toFixed(1)} Q${mx.toFixed(1)} ${my.toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}`);
+        }
+    }
+
+    const all = radial.concat(rings).join(' ');
+    const hole = rnd(4.5, 6.5);
+    return `
+<svg viewBox="0 0 100 100" aria-hidden="true">
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="${all}" stroke="rgba(0,0,0,.55)" stroke-width="3"/>
+    <path d="${all}" stroke="rgba(255,255,255,.92)" stroke-width="1.1"/>
+  </g>
+  <circle cx="${C}" cy="${C}" r="${(hole + 1.6).toFixed(1)}" fill="rgba(0,0,0,.5)"/>
+  <circle cx="${C}" cy="${C}" r="${hole.toFixed(1)}" fill="#08080a"/>
+  <circle cx="${C}" cy="${C}" r="${hole.toFixed(1)}" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="1.3"/>
+</svg>`;
+}
+
+// 弾痕の位置と大きさ（カードの絵に対する割合）。
+// 同じ大きさで並べると判子っぽくなるので、1発ずつ変えてある
+const HOLE_SPOTS = [
+    { x: 40, y: 33, size: 62 },
+    { x: 63, y: 54, size: 46 },
+    { x: 45, y: 71, size: 52 },
+];
 
 /** 弾痕を1つ置く。restored=true は復帰時の復元なのでアニメーションしない */
-function addBulletHole(container, [x, y], restored) {
+function addBulletHole(container, spot, restored) {
     const hole = document.createElement('div');
     hole.className = 'bullet-hole' + (restored ? ' is-restored' : '');
-    hole.style.left = x + '%';
-    hole.style.top = y + '%';
-    hole.innerHTML = BULLET_HOLE;
+    hole.style.left = spot.x + '%';
+    hole.style.top = spot.y + '%';
+    hole.style.setProperty('--hole-size', spot.size + '%');
+    hole.innerHTML = glassCrackSVG();
     container.appendChild(hole);
 }
 
@@ -678,22 +728,56 @@ function restoreBulletHoles(card) {
     HOLE_SPOTS.forEach(spot => addBulletHole(cont, spot, true));
 }
 
+/** 両端が尖った帯の形。1本ずつ違う形にして、定規で引いたように見せない */
+function slashClipPath() {
+    const r = (a, b) => (a + Math.random() * (b - a)).toFixed(1);
+    return `polygon(0% ${r(28, 52)}%, ${r(3, 9)}% 0%, ${r(86, 96)}% ${r(0, 14)}%, ` +
+           `100% ${r(44, 68)}%, ${r(89, 97)}% 100%, ${r(4, 11)}% ${r(84, 98)}%)`;
+}
+
 /** 画面全体のカットインと、カードへの着弾 */
 function playKillEffect(card, targetName) {
     const cut = document.createElement('div');
     cut.id = 'kill-cutin';
-    const band = document.createElement('div');
-    band.className = 'kill-band';
-    const word = document.createElement('span');
+
+    const dim = document.createElement('div');
+    dim.className = 'kill-dim';
+    cut.appendChild(dim);
+
+    // 赤い帯を左右から交互に。高さ・位置・濃さ・タイミングを散らす
+    // 隙間を空けて帯に見せる。埋めてしまうとただの赤い画面になる。
+    // 文字が乗る 50% 付近には太い帯を通して読みやすくする
+    const bands = [
+        { top: 18, h: 5,  color: '#8e0f22', delay: 90,  right: false },
+        { top: 29, h: 10, color: '#b3122a', delay: 0,   right: true  },
+        { top: 44, h: 15, color: '#dc3545', delay: 50,  right: false },
+        { top: 65, h: 7,  color: '#ff5566', delay: 130, right: true  },
+        { top: 77, h: 5,  color: '#a81428', delay: 30,  right: false },
+    ];
+    bands.forEach(b => {
+        const el = document.createElement('div');
+        el.className = 'kill-slash' + (b.right ? ' from-right' : '');
+        el.style.top = b.top + '%';
+        el.style.height = b.h + '%';
+        el.style.background = b.color;
+        el.style.animationDelay = b.delay + 'ms';
+        el.style.clipPath = slashClipPath();
+        cut.appendChild(el);
+    });
+
+    const text = document.createElement('div');
+    text.className = 'kill-text';
+    const word = document.createElement('div');
     word.className = 'kill-word';
     word.textContent = '暗殺';
-    const who = document.createElement('span');
+    const who = document.createElement('div');
     who.className = 'kill-target';
     who.textContent = targetName;          // 名前は必ず textContent で入れる
-    band.append(word, who);
-    cut.appendChild(band);
+    text.append(word, who);
+    cut.appendChild(text);
+
     document.body.appendChild(cut);
-    setTimeout(() => cut.remove(), 1600);
+    setTimeout(() => cut.remove(), 1800);
 
     const cont = card?.querySelector('.role-image-container');
     if (!cont || cont.querySelector('.bullet-hole')) return;
