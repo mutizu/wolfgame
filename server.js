@@ -337,10 +337,15 @@ function startNewGame(room, useCpu) {
  * 以前は全員に全員の役職を送って画面側で隠していただけだったため、
  * 開発者ツールを開けば全部見えてしまっていた。他人の役職は送らない。
  */
-/** 狼（人狼・白狼）の名前。白狼は本人に自覚がないが、狂信者からは狼に見える */
-function wolfNames(room) {
+/**
+ * 狼（人狼・白狼）の名前。exceptId を渡すとその人を除く。
+ * 人狼が自分の名前を「仲間」として見せられても意味がないため、本人は外す。
+ * 白狼は自分が狼だと知らないが、他の狼からは狼として見える。
+ */
+function wolfNames(room, exceptId = null) {
     return room.gameSetup.players
         .filter(p => ROLES[p.role]?.isWerewolf)
+        .filter(p => (p.id || p.name) !== exceptId)
         .map(p => p.name);
 }
 
@@ -367,8 +372,9 @@ function emitGameStarted(room, onlyId = null) {
             deadIds: [...room.deadIds],
             abilityUsed: room.usedAbilities.has(me.id),
 
-            // 狂信者にだけ、狼が誰かを渡す。狼側には狂信者が誰か伝えない
-            knownWolves: ROLES[me.role]?.seesWolves ? wolfNames(room) : null,
+            // 人狼と狂信者にだけ渡す。狼側には狂信者が誰か伝えない
+            knownWolves: ROLES[me.role]?.seesWolves ? wolfNames(room, me.id) : null,
+            youAreWolf: !!ROLES[me.role]?.isWerewolf,
         });
     }
 }
@@ -621,8 +627,9 @@ io.on('connection', (socket) => {
             targetId: target.id || target.name,
             targetName: target.name,
             role: acquired,
-            // 付いた先が狂信者だった場合、この時点から狼が見えるようにする
-            knownWolves: ROLES[acquired]?.seesWolves ? wolfNames(room) : null,
+            // 付いた先が人狼・狂信者だった場合、この時点から狼が見えるようにする
+            knownWolves: ROLES[acquired]?.seesWolves ? wolfNames(room, socket.id) : null,
+            youAreWolf: !!ROLES[acquired]?.isWerewolf,
         });
     });
 

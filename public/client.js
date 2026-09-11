@@ -387,13 +387,30 @@ socket.on('gameStarted', (data) => {
     document.querySelector('.phase-header h2').textContent = '議論中';
 
     // 6. 狂信者にだけ届く狼の情報。狼側はこちらを知らない
-    showKnownWolves(data.knownWolves);
+    showKnownWolves(data.knownWolves, data.youAreWolf);
 });
 
-/** 狂信者が狼を把握するための表示。本人にしか届かない情報 */
-function showKnownWolves(names) {
-    if (!Array.isArray(names) || names.length === 0) return;
+/**
+ * 人狼と狂信者だけに届く、狼の情報。
+ * 人狼から見れば「仲間」、狂信者から見れば「誰を守るか」なので文言を分ける。
+ * 名前の一覧には自分が含まれていない（サーバー側で除いている）。
+ */
+function showKnownWolves(names, iAmWolf) {
+    if (!Array.isArray(names)) return;
     const list = names.join('、');
+
+    if (iAmWolf) {
+        if (names.length === 0) {
+            showNotice('あなた以外に人狼はいません。', 'notice-wolf');
+            appendChatSystem('（あなただけに表示）あなた以外に人狼はいません');
+            return;
+        }
+        showNotice(`仲間の人狼は ${list} です。`, 'notice-wolf');
+        appendChatSystem(`（あなただけに表示）仲間の人狼：${list}`);
+        return;
+    }
+
+    if (names.length === 0) return;
     showNotice(`人狼は ${list} です。あなたが狂信者であることは、人狼側には分かりません。`, 'notice-wolf');
     appendChatSystem(`（あなただけに表示）人狼：${list}`);
 }
@@ -581,7 +598,7 @@ socket.on('followerResult', (res) => {
     }
 
     showNotice(`${res.targetName} は「${res.role}」でした。あなたも ${res.role} になりました。`, 'notice-teal');
-    showKnownWolves(res.knownWolves);
+    showKnownWolves(res.knownWolves, res.youAreWolf);
 });
 
 // 暗殺（全員に公開される）
