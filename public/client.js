@@ -359,7 +359,9 @@ socket.on('gameStarted', (data) => {
     // 復帰時に、既に暗殺されている人の見た目を戻す
     deadIds.forEach(id => {
         const card = document.getElementById(`player-card-${id}`);
-        if (card) card.classList.add('is-dead');
+        if (!card) return;
+        card.classList.add('is-dead');
+        restoreBulletHoles(card);
     });
     if (deadIds.has(socket.id)) setChatEnabled(false);
 
@@ -636,13 +638,87 @@ socket.on('accuseResult', (data) => {
         data.team === '人狼陣営' ? 'notice-wolf' : 'notice-teal');
 });
 
+// ----------------------------------------------------------
+// 暗殺の演出
+// ----------------------------------------------------------
+
+const BULLET_HOLE = `
+<svg viewBox="0 0 40 40" aria-hidden="true">
+  <g stroke-linecap="round" fill="none">
+    <!-- ひびは太い暗線の上に細い明線を重ねる。こうしないと暗い絵でも明るい絵でも
+         どちらかで見えなくなる -->
+    <path d="M20 20L30 8M20 20L35 22M20 20L27 34M20 20L11 32M20 20L5 26M20 20L8 11M20 20L18 4"
+          stroke="rgba(0,0,0,.6)" stroke-width="3.4"/>
+    <path d="M20 20L30 8M20 20L35 22M20 20L27 34M20 20L11 32M20 20L5 26M20 20L8 11M20 20L18 4"
+          stroke="rgba(255,255,255,.82)" stroke-width="1.3"/>
+  </g>
+  <circle cx="20" cy="20" r="8.6" fill="rgba(0,0,0,.55)"/>
+  <circle cx="20" cy="20" r="7.4" fill="#0a0a0c"/>
+  <circle cx="20" cy="20" r="7.4" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="1.5"/>
+  <circle cx="17.4" cy="17.6" r="2.2" fill="rgba(255,255,255,.16)"/>
+</svg>`;
+
+// 弾痕を撃ち込む位置（カードの絵に対する割合）。毎回同じだと単調なので少し散らす
+const HOLE_SPOTS = [[38, 34], [61, 50], [46, 69]];
+
+/** 弾痕を1つ置く。restored=true は復帰時の復元なのでアニメーションしない */
+function addBulletHole(container, [x, y], restored) {
+    const hole = document.createElement('div');
+    hole.className = 'bullet-hole' + (restored ? ' is-restored' : '');
+    hole.style.left = x + '%';
+    hole.style.top = y + '%';
+    hole.innerHTML = BULLET_HOLE;
+    container.appendChild(hole);
+}
+
+/** 暗殺された人のカードに弾痕を残す（演出なし。復帰時に使う） */
+function restoreBulletHoles(card) {
+    const cont = card?.querySelector('.role-image-container');
+    if (!cont || cont.querySelector('.bullet-hole')) return;
+    HOLE_SPOTS.forEach(spot => addBulletHole(cont, spot, true));
+}
+
+/** 画面全体のカットインと、カードへの着弾 */
+function playKillEffect(card, targetName) {
+    const cut = document.createElement('div');
+    cut.id = 'kill-cutin';
+    const band = document.createElement('div');
+    band.className = 'kill-band';
+    const word = document.createElement('span');
+    word.className = 'kill-word';
+    word.textContent = '暗殺';
+    const who = document.createElement('span');
+    who.className = 'kill-target';
+    who.textContent = targetName;          // 名前は必ず textContent で入れる
+    band.append(word, who);
+    cut.appendChild(band);
+    document.body.appendChild(cut);
+    setTimeout(() => cut.remove(), 1600);
+
+    const cont = card?.querySelector('.role-image-container');
+    if (!cont || cont.querySelector('.bullet-hole')) return;
+
+    HOLE_SPOTS.forEach((spot, i) => {
+        setTimeout(() => {
+            addBulletHole(cont, spot, false);
+            card.classList.remove('is-hit');
+            void card.offsetWidth;          // 連続で撃つため、アニメーションを掛け直す
+            card.classList.add('is-hit');
+        }, 300 + i * 150);
+    });
+}
+
 socket.on('playerAssassinated', (data) => {
     deadIds.add(data.targetId);
 
     const card = document.getElementById(`player-card-${data.targetId}`);
     if (card) {
-        card.classList.add('is-dead');
         card.querySelectorAll('.ability-btn, .vote-button').forEach(b => b.remove());
+        playKillEffect(card, data.targetName);
+        // 灰色に沈むのは演出が終わってから
+        setTimeout(() => card.classList.add('is-dead'), 760);
+    } else {
+        playKillEffect(null, data.targetName);
     }
 
     // 暗殺された人は処刑先にも選べなくなるので、投票ボタンを消す

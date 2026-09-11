@@ -234,10 +234,74 @@ button{font-family:inherit}
 .border-gray{border-color:var(--border)}
 .bg-werewolf,.bg-villager,.bg-gray,.bg-solo{background:var(--surface-2)}
 
-.player-card.is-dead{opacity:.45}
+/* ---------- 暗殺の演出 ---------- */
+#kill-cutin{
+  position:fixed;inset:0;z-index:10050;pointer-events:none;
+  display:flex;align-items:center;justify-content:center;overflow:hidden;
+}
+.kill-band{
+  position:relative;width:150%;padding:16px 0;
+  background:linear-gradient(90deg,rgba(9,9,11,0),rgba(9,9,11,.96) 14%,rgba(9,9,11,.96) 86%,rgba(9,9,11,0));
+  transform:skewY(-3deg);
+  display:flex;align-items:center;justify-content:center;gap:20px;
+  animation:kill-sweep 1.5s cubic-bezier(.16,.84,.3,1) forwards;
+}
+.kill-band::before,.kill-band::after{
+  content:'';position:absolute;left:0;width:100%;height:2px;background:var(--wolf);
+}
+.kill-band::before{top:0}
+.kill-band::after{bottom:0}
+.kill-word{
+  font-size:2.3rem;font-weight:900;letter-spacing:.24em;color:#fff;
+  text-shadow:0 0 16px rgba(220,53,69,.85);
+}
+.kill-target{font-size:1rem;font-weight:700;color:var(--wolf);letter-spacing:.05em}
+@keyframes kill-sweep{
+  0%   {opacity:0;transform:skewY(-3deg) translateX(-22%) scaleX(.65)}
+  16%  {opacity:1;transform:skewY(-3deg) translateX(0)    scaleX(1)}
+  74%  {opacity:1;transform:skewY(-3deg) translateX(0)    scaleX(1)}
+  100% {opacity:0;transform:skewY(-3deg) translateX(16%)  scaleX(1.06)}
+}
+
+/* 弾痕。カードの絵の上に撃ち込まれ、試合中は残る */
+.bullet-hole{
+  position:absolute;width:34%;max-width:46px;aspect-ratio:1;
+  transform:translate(-50%,-50%) scale(0);
+  animation:hole-punch .26s cubic-bezier(.2,1.7,.4,1) forwards;
+  pointer-events:none;z-index:3;
+}
+.bullet-hole.is-restored{animation:none;transform:translate(-50%,-50%) scale(1) rotate(6deg)}
+.bullet-hole svg{width:100%;height:100%;display:block}
+@keyframes hole-punch{
+  0%  {transform:translate(-50%,-50%) scale(0)    rotate(0deg)}
+  60% {transform:translate(-50%,-50%) scale(1.28) rotate(6deg)}
+  100%{transform:translate(-50%,-50%) scale(1)    rotate(6deg)}
+}
+.player-card.is-hit{animation:card-shake .38s ease-out}
+@keyframes card-shake{
+  0%,100%{transform:translate(0,0)}
+  15%{transform:translate(-5px,2px)}
+  32%{transform:translate(4px,-3px)}
+  50%{transform:translate(-4px,-1px)}
+  68%{transform:translate(3px,2px)}
+  85%{transform:translate(-2px,0)}
+}
+
+@media (prefers-reduced-motion: reduce){
+  .kill-band{animation:kill-hold 1.3s ease forwards}
+  .bullet-hole{animation:none;transform:translate(-50%,-50%) scale(1) rotate(6deg)}
+  .player-card.is-hit{animation:none}
+}
+@keyframes kill-hold{0%{opacity:0}18%{opacity:1}76%{opacity:1}100%{opacity:0}}
+
+/* 退場した人。カード全体を薄くすると弾痕まで薄くなるので、
+   絵と文字だけを沈ませて、撃ち込んだ痕はくっきり残す */
+.player-card.is-dead .role-icon{filter:grayscale(.85) brightness(.72)}
+.player-card.is-dead .player-name,
+.player-card.is-dead .my-role-badge{opacity:.5}
 .player-card.is-dead::after{
-  content:'';position:absolute;inset:0;
-  background:repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(128,128,128,.18) 6px,rgba(128,128,128,.18) 12px);
+  content:'';position:absolute;inset:0;z-index:2;
+  background:repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(128,128,128,.16) 6px,rgba(128,128,128,.16) 12px);
 }
 
 /* カード内のボタン */
