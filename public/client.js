@@ -18,6 +18,7 @@ let lastCpuChecked = false;
 let myRole = null;              // 自分の役職（付き人が能力を使うと変わる）
 let abilityUsed = false;        // 能力は1ゲームに1回だけ
 let deadIds = new Set();        // 暗殺された人。投票できない
+let roster = [];                // 今の試合の参加者 { name, id }。名前からカードを引くのに使う
 
 // ---------- HTML要素 ----------
 const entryScreen = document.getElementById('entry-screen');
@@ -321,6 +322,7 @@ socket.on('gameStarted', (data) => {
     clearAbilityUI();
 
     myRole = data.yourRole || null;
+    roster = data.players || [];
     // 途中で復帰した場合は、暗殺状況と能力の使用済みをサーバーから受け取って復元する
     abilityUsed = !!data.abilityUsed;
     deadIds = new Set(data.deadIds || []);
@@ -407,12 +409,34 @@ function showKnownWolves(names, iAmWolf) {
         }
         showNotice(`仲間の人狼は ${list} です。`, 'notice-wolf');
         appendChatSystem(`（あなただけに表示）仲間の人狼：${list}`);
+        markWolfCards(names, '仲間');
         return;
     }
 
     if (names.length === 0) return;
     showNotice(`人狼は ${list} です。あなたが狂信者であることは、人狼側には分かりません。`, 'notice-wolf');
     appendChatSystem(`（あなただけに表示）人狼：${list}`);
+    markWolfCards(names, '人狼');
+}
+
+/**
+ * 狼のカードに印を付ける。チャットの1行は流れて消えてしまうため、
+ * 盤面にも残しておく。役職名は出さない——白狼を「人狼」と書くと嘘になるし、
+ * 一覧で伝えている情報（誰が狼か）はこの印と同じ粒度だから。
+ */
+function markWolfCards(names, label) {
+    names.forEach(name => {
+        const p = roster.find(x => x.name === name);
+        const card = document.getElementById(`player-card-${p ? (p.id || p.name) : name}`);
+        if (!card) return;
+        const cont = card.querySelector('.role-image-container');
+        if (!cont || cont.querySelector('.wolf-tag')) return;
+        const tag = document.createElement('div');
+        tag.className = 'wolf-tag';
+        tag.textContent = label;
+        cont.appendChild(tag);
+        card.classList.add('is-wolf-known');
+    });
 }
 
 // ----------------------------------------------------------
