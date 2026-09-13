@@ -268,9 +268,14 @@ button{font-family:inherit}
 }
 
 /* 立ち絵。右下から出して、文字とぶつからないようにする */
+/* 立ち絵は画面の端ではなく、中央に置いた幅760pxの枠の右端に寄せる。
+   端に貼ると広い窓で隅に飛んでいって見切れる */
 .cut-figure{
-  position:absolute;right:-4%;bottom:0;
-  height:62%;max-height:340px;width:auto;
+  position:absolute;bottom:0;
+  right:max(-14px, calc(50% - 380px));
+  /* 狭い画面では立ち絵の横幅が画面を超えてしまうので小さめにする。
+     横に余裕がある窓では大きく出す */
+  height:clamp(230px, 42vh, 420px);width:auto;
   filter:drop-shadow(0 0 10px rgba(0,0,0,.55));
   transform:translateX(28%) scale(.92);opacity:0;
   animation:cut-figure 1.75s cubic-bezier(.12,.9,.2,1) forwards;
@@ -282,21 +287,25 @@ button{font-family:inherit}
   100%{opacity:0;transform:translateX(10%) scale(1.02)}
 }
 
+@media (min-width:760px){
+  .cut-figure{height:clamp(300px, 58vh, 560px)}
+}
+
 .cut-text{
   position:absolute;left:0;right:0;top:50%;
   text-align:center;transform:translateY(-50%) scale(.7);opacity:0;
   animation:cut-text 1.75s cubic-bezier(.14,1.4,.3,1) forwards;
 }
 .cut-text .cut-word{
-  font-size:3rem;font-weight:900;letter-spacing:.2em;color:#fff;line-height:1.1;
+  font-size:clamp(2.6rem, 11vmin, 5rem);font-weight:900;letter-spacing:.2em;color:#fff;line-height:1.1;
   text-shadow:0 0 4px #000,0 0 22px var(--cut-c),0 4px 0 rgba(0,0,0,.5);
 }
 .cut-text .cut-sub{
-  margin-top:6px;font-size:1.05rem;font-weight:800;letter-spacing:.08em;color:#fff;
+  margin-top:6px;font-size:clamp(1rem, 3.4vmin, 1.7rem);font-weight:800;letter-spacing:.08em;color:#fff;
   text-shadow:0 0 3px #000,0 0 12px rgba(0,0,0,.9);
 }
 .cut-text .cut-lead{
-  margin-top:4px;font-size:1.3rem;font-weight:900;letter-spacing:.1em;color:#fff;
+  margin-top:4px;font-size:clamp(1.25rem, 4.4vmin, 2.2rem);font-weight:900;letter-spacing:.1em;color:#fff;
   text-shadow:0 0 4px #000,0 2px 0 rgba(0,0,0,.6);
 }
 @keyframes cut-text{
