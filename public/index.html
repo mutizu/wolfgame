@@ -278,7 +278,7 @@ button{font-family:inherit}
    端に貼ると広い窓で隅に飛んでいって見切れる */
 .cut-figure{
   position:absolute;bottom:0;
-  right:max(calc(var(--u) * -1.7), calc(50% - var(--u) * 62));
+  right:max(calc(var(--u) * -1.7), calc(50% - var(--u) * 66));
   /* 正方形の絵なので、高さがそのまま横幅になる。
      横長で高さの足りない窓でははみ出すため、高さ側にだけ上限を置く */
   height:max(calc(var(--u) * 42), 30vw);max-height:76vh;width:auto;
@@ -299,15 +299,15 @@ button{font-family:inherit}
   animation:cut-text 1.75s cubic-bezier(.14,1.4,.3,1) forwards;
 }
 .cut-text .cut-word{
-  font-size:max(calc(var(--u) * 5.2), 4.6vw);font-weight:900;letter-spacing:.2em;color:#fff;line-height:1.1;
+  font-size:max(calc(var(--u) * 5.2), 6.2vw);font-weight:900;letter-spacing:.2em;color:#fff;line-height:1.1;
   text-shadow:0 0 4px #000,0 0 22px var(--cut-c),0 4px 0 rgba(0,0,0,.5);
 }
 .cut-text .cut-sub{
-  margin-top:calc(var(--u) * .8);font-size:max(calc(var(--u) * 2), 1.7vw);font-weight:800;letter-spacing:.08em;color:#fff;
+  margin-top:calc(var(--u) * .8);font-size:max(calc(var(--u) * 2), 2.3vw);font-weight:800;letter-spacing:.08em;color:#fff;
   text-shadow:0 0 3px #000,0 0 12px rgba(0,0,0,.9);
 }
 .cut-text .cut-lead{
-  margin-top:calc(var(--u) * .5);font-size:max(calc(var(--u) * 2.5), 2.3vw);font-weight:900;letter-spacing:.1em;color:#fff;
+  margin-top:calc(var(--u) * .5);font-size:max(calc(var(--u) * 2.5), 3.1vw);font-weight:900;letter-spacing:.1em;color:#fff;
   text-shadow:0 0 4px #000,0 2px 0 rgba(0,0,0,.6);
 }
 @keyframes cut-text{
