@@ -237,7 +237,13 @@ button{font-family:inherit}
 /* ---------- 斬撃のカットイン（暗殺・告発で共通） ---------- */
 /* 色（--cut-c）と文字と立ち絵だけが違い、動きは同じ。
    告発は判明した陣営の色になるので、色そのものが結果を伝える */
-.slash-cutin{position:fixed;inset:0;z-index:10050;pointer-events:none;overflow:hidden}
+.slash-cutin{
+  position:fixed;inset:0;z-index:10050;pointer-events:none;overflow:hidden;
+  /* 演出の基準単位。すべての寸法をこれに比例させることで、
+     画面の大きさが変わっても見え方が変わらないようにする。
+     px固定や clamp の上限を使うと、大きい画面で演出だけ取り残されて迫力が消える */
+  --u:max(1vh, .62vw);
+}
 
 .cut-dim{
   position:absolute;inset:0;background:rgba(6,6,8,.6);
@@ -272,10 +278,10 @@ button{font-family:inherit}
    端に貼ると広い窓で隅に飛んでいって見切れる */
 .cut-figure{
   position:absolute;bottom:0;
-  right:max(-14px, calc(50% - 380px));
-  /* 狭い画面では立ち絵の横幅が画面を超えてしまうので小さめにする。
-     横に余裕がある窓では大きく出す */
-  height:clamp(230px, 42vh, 420px);width:auto;
+  right:max(calc(var(--u) * -1.7), calc(50% - var(--u) * 62));
+  /* 正方形の絵なので、高さがそのまま横幅になる。
+     横長で高さの足りない窓でははみ出すため、高さ側にだけ上限を置く */
+  height:max(calc(var(--u) * 42), 30vw);max-height:76vh;width:auto;
   filter:drop-shadow(0 0 10px rgba(0,0,0,.55));
   transform:translateX(28%) scale(.92);opacity:0;
   animation:cut-figure 1.75s cubic-bezier(.12,.9,.2,1) forwards;
@@ -287,25 +293,21 @@ button{font-family:inherit}
   100%{opacity:0;transform:translateX(10%) scale(1.02)}
 }
 
-@media (min-width:760px){
-  .cut-figure{height:clamp(300px, 58vh, 560px)}
-}
-
 .cut-text{
   position:absolute;left:0;right:0;top:50%;
   text-align:center;transform:translateY(-50%) scale(.7);opacity:0;
   animation:cut-text 1.75s cubic-bezier(.14,1.4,.3,1) forwards;
 }
 .cut-text .cut-word{
-  font-size:clamp(2.6rem, 11vmin, 5rem);font-weight:900;letter-spacing:.2em;color:#fff;line-height:1.1;
+  font-size:max(calc(var(--u) * 5.2), 4.6vw);font-weight:900;letter-spacing:.2em;color:#fff;line-height:1.1;
   text-shadow:0 0 4px #000,0 0 22px var(--cut-c),0 4px 0 rgba(0,0,0,.5);
 }
 .cut-text .cut-sub{
-  margin-top:6px;font-size:clamp(1rem, 3.4vmin, 1.7rem);font-weight:800;letter-spacing:.08em;color:#fff;
+  margin-top:calc(var(--u) * .8);font-size:max(calc(var(--u) * 2), 1.7vw);font-weight:800;letter-spacing:.08em;color:#fff;
   text-shadow:0 0 3px #000,0 0 12px rgba(0,0,0,.9);
 }
 .cut-text .cut-lead{
-  margin-top:4px;font-size:clamp(1.25rem, 4.4vmin, 2.2rem);font-weight:900;letter-spacing:.1em;color:#fff;
+  margin-top:calc(var(--u) * .5);font-size:max(calc(var(--u) * 2.5), 2.3vw);font-weight:900;letter-spacing:.1em;color:#fff;
   text-shadow:0 0 4px #000,0 2px 0 rgba(0,0,0,.6);
 }
 @keyframes cut-text{

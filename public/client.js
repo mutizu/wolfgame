@@ -758,12 +758,14 @@ function slashClipPath() {
 // 文字が乗る 50% 付近には太い帯を通して読みやすくする
 // 太さは clamp で頭打ちにする。画面の%だけで指定すると、横長の窓で
 // 斜めに伸びて画面を埋めてしまう（スマホ縦だけで調整して崩した）
+// 太さは CSS 側の基準単位 --u に比例させる。px や clamp で頭打ちにすると、
+// 大きい画面で帯だけ細く見えて迫力が消える
 const SLASH_BANDS = [
-    { top: 18, h: 'clamp(22px, 5vh, 52px)',   shade: .45, delay: 90,  right: false },
-    { top: 29, h: 'clamp(40px, 10vh, 92px)',  shade: .72, delay: 0,   right: true  },
-    { top: 44, h: 'clamp(58px, 15vh, 132px)', shade: 1,   delay: 50,  right: false },
-    { top: 65, h: 'clamp(30px, 7vh, 66px)',   shade: 1.2, delay: 130, right: true  },
-    { top: 77, h: 'clamp(22px, 5vh, 52px)',   shade: .55, delay: 30,  right: false },
+    { top: 18, h: 5,  shade: .45, delay: 90,  right: false },
+    { top: 29, h: 10, shade: .72, delay: 0,   right: true  },
+    { top: 44, h: 15, shade: 1,   delay: 50,  right: false },
+    { top: 65, h: 7,  shade: 1.2, delay: 130, right: true  },
+    { top: 77, h: 5,  shade: .55, delay: 30,  right: false },
 ];
 
 /** 明度を変えた同系色を作る。帯ごとに濃さを散らすため */
@@ -796,7 +798,7 @@ function playSlashCutin({ color, word, lines, figure }) {
         const el = document.createElement('div');
         el.className = 'cut-slash' + (b.right ? ' from-right' : '');
         el.style.top = b.top + '%';
-        el.style.height = b.h;
+        el.style.height = `calc(var(--u) * ${b.h})`;
         el.style.background = shadeColor(color, b.shade);
         el.style.animationDelay = b.delay + 'ms';
         el.style.clipPath = slashClipPath();
